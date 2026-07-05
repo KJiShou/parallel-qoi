@@ -1,0 +1,34 @@
+# Build outputs
+build*/
+out/
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+*.sln
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+
+# Visual Studio / IDE
+.vs/
+.vscode/
+.idea/
+
+# Binaries and debug symbols
+*.exe
+*.dll
+*.lib
+*.obj
+*.pdb
+*.ilk
+*.exp
+
+# CUDA / profiling / logs
+*.log
+*.tlog
+*.recipe
+
+# OS files
+.DS_Store
+Thumbs.db
