@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <iomanip>
 #include <iostream>
 #include <numeric>
@@ -39,6 +40,7 @@ struct SimulationConfig {
     std::string output;
     std::string frames;
     int frameInterval = 0;
+    bool traceOnly = false;
 };
 
 struct TimingStats {
@@ -54,7 +56,7 @@ inline void printUsage(const char* program, bool mpi = false) {
     std::cout << "Usage: " << program << " [options]\n"
               << "  --rows N --cols N --steps N --density P --seed N\n"
               << "  --ignition-row N --ignition-col N\n"
-              << "  --output FILE.json --frames FILE.json --frame-interval N\n"
+              << "  --output FILE.json --frames FILE.json --frame-interval N --trace-only\n"
               << "  --repetitions N --warmup N\n"
               << "  --threads N (OpenMP) --block-size N (CUDA)\n"
               << "  --help\n";
@@ -102,6 +104,7 @@ inline SimulationConfig parseArgs(int argc, char** argv, bool mpi = false) {
         else if (arg == "--output") cfg.output = requireValue("--output");
         else if (arg == "--frames") cfg.frames = requireValue("--frames");
         else if (arg == "--frame-interval") cfg.frameInterval = parseInt(requireValue("--frame-interval"), "--frame-interval");
+        else if (arg == "--trace-only") cfg.traceOnly = true;
         else throw std::invalid_argument("unknown argument: " + arg);
     }
     if (cfg.rows <= 0 || cfg.cols <= 0 || cfg.steps < 0) throw std::invalid_argument("rows/cols must be positive and steps cannot be negative");
@@ -201,21 +204,27 @@ inline std::vector<int> runSerial(const std::vector<int>& initial, const Simulat
     return current;
 }
 
+inline std::string base64Encode(const std::vector<std::uint8_t>& input) {
+    static constexpr char alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"; std::string output;
+    for (std::size_t i = 0; i < input.size(); i += 3) { const std::uint32_t value = (static_cast<std::uint32_t>(input[i]) << 16) | (i + 1 < input.size() ? static_cast<std::uint32_t>(input[i + 1]) << 8 : 0) | (i + 2 < input.size() ? input[i + 2] : 0); output += alphabet[(value >> 18) & 63]; output += alphabet[(value >> 12) & 63]; output += i + 1 < input.size() ? alphabet[(value >> 6) & 63] : '='; output += i + 2 < input.size() ? alphabet[value & 63] : '='; } return output;
+}
+inline void writeCompressedFrame(std::ostream& out, const SimulationConfig& cfg, const std::vector<int>& grid, int step, bool& first) {
+    const int aggregationRows = std::max(1, cfg.rows / 500), aggregationCols = std::max(1, cfg.cols / 500); std::vector<std::uint8_t> packed(62500, 0);
+    for (int row = 0; row < 500; ++row) for (int col = 0; col < 500; ++col) { int counts[4] = {0,0,0,0}; for (int r = row * aggregationRows; r < std::min(cfg.rows, (row + 1) * aggregationRows); ++r) for (int c = col * aggregationCols; c < std::min(cfg.cols, (col + 1) * aggregationCols); ++c) ++counts[grid[index2D(r,c,cfg.cols)]]; const int priority[] = {BURNING,BURNED,TREE,EMPTY}; int state = EMPTY, maximum = -1; for (int candidate : priority) if (counts[candidate] > maximum) { state = candidate; maximum = counts[candidate]; } const int index = row * 500 + col; packed[index / 4] |= static_cast<std::uint8_t>(state << ((index % 4) * 2)); }
+    if (!first) out << ",\n"; first = false; out << "    {\"step\": " << step << ", \"cells2BitBase64\": "; writeJsonString(out, base64Encode(packed)); out << "}";
+}
+inline void writeCompressedTrace(const SimulationConfig& cfg, const std::vector<int>& initial) {
+    if (cfg.frames.empty()) return; ensureParent(cfg.frames); std::ofstream out(cfg.frames); if (!out) throw std::runtime_error("cannot open frames: " + cfg.frames); const int aggregationRows = std::max(1, cfg.rows / 500), aggregationCols = std::max(1, cfg.cols / 500);
+    out << std::setprecision(12) << "{\n  \"schemaVersion\": 2,\n  \"sourceRows\": " << cfg.rows << ",\n  \"sourceCols\": " << cfg.cols << ",\n  \"previewRows\": 500,\n  \"previewCols\": 500,\n  \"aggregationRows\": " << aggregationRows << ",\n  \"aggregationCols\": " << aggregationCols << ",\n  \"steps\": " << cfg.steps << ",\n  \"density\": " << cfg.treeDensity << ",\n  \"seed\": " << cfg.seed << ",\n  \"frames\": [\n";
+    std::vector<int> current = initial, next(current.size(), EMPTY); bool first = true; writeCompressedFrame(out,cfg,current,0,first); for (int step = 0; step < cfg.steps; ++step) { for (int r = 0; r < cfg.rows; ++r) for (int c = 0; c < cfg.cols; ++c) next[index2D(r,c,cfg.cols)] = updateCellCPU(current,r,c,cfg.rows,cfg.cols); current.swap(next); if (cfg.frameInterval > 0 && ((step + 1) % cfg.frameInterval == 0 || step + 1 == cfg.steps)) writeCompressedFrame(out,cfg,current,step + 1,first); } out << "\n  ]\n}\n";
+}
+
 inline int runMain(int argc, char** argv, const std::string& backend) {
     try {
-        SimulationConfig cfg = parseArgs(argc, argv);
-        const auto initial = generateInitialGrid(cfg);
-        for (int i = 0; i < cfg.warmup; ++i) runSerial(initial, cfg);
-        std::vector<double> samples; std::vector<int> finalGrid; std::vector<std::vector<int>> frames;
-        for (int rep = 0; rep < cfg.repetitions; ++rep) {
-            const auto start = std::chrono::steady_clock::now();
-            finalGrid = runSerial(initial, cfg, (rep == 0 && !cfg.frames.empty()) ? &frames : nullptr);
-            const auto end = std::chrono::steady_clock::now();
-            samples.push_back(std::chrono::duration<double, std::milli>(end - start).count());
-        }
-        const auto timing = summarizeTimings(samples); writeSummary(cfg, backend, timing, finalGrid, 1, 0); writeFrames(cfg, backend, frames);
-        std::cout << backend << " result\nTime (ms): " << timing.median << "\nBurned cells: " << countBurnedCells(finalGrid) << "\nChecksum: " << checksumGrid(finalGrid) << "\n";
-        return 0;
+        SimulationConfig cfg = parseArgs(argc, argv); const auto initial = generateInitialGrid(cfg); writeCompressedTrace(cfg, initial); if (cfg.traceOnly) return 0;
+        for (int i = 0; i < cfg.warmup; ++i) runSerial(initial, cfg); std::vector<double> samples; std::vector<int> finalGrid;
+        for (int rep = 0; rep < cfg.repetitions; ++rep) { const auto start = std::chrono::steady_clock::now(); finalGrid = runSerial(initial, cfg); const auto end = std::chrono::steady_clock::now(); samples.push_back(std::chrono::duration<double, std::milli>(end - start).count()); }
+        const auto timing = summarizeTimings(samples); writeSummary(cfg, backend, timing, finalGrid, 1, 0); std::cout << backend << " result\nTime (ms): " << timing.median << "\nBurned cells: " << countBurnedCells(finalGrid) << "\nChecksum: " << checksumGrid(finalGrid) << "\n"; return 0;
     } catch (const std::exception& ex) { std::cerr << "Error: " << ex.what() << "\n"; printUsage(argv[0]); return 2; }
 }
 

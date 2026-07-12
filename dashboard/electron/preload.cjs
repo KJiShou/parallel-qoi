@@ -2,6 +2,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('wildfireDesktop', {
   getCapabilities: () => ipcRenderer.invoke('wildfire:get-capabilities'),
   startRun: config => ipcRenderer.invoke('wildfire:start-run', config),
+  startTrace: config => ipcRenderer.invoke('wildfire:start-trace', config),
   cancelRun: runId => ipcRenderer.invoke('wildfire:cancel-run', runId),
   listRuns: () => ipcRenderer.invoke('wildfire:list-runs'),
   readRun: runId => ipcRenderer.invoke('wildfire:read-run', runId),

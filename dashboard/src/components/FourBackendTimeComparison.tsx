@@ -1,5 +1,5 @@
 import React from 'react';
-import type { Backend, Benchmark, Scenario } from '../types';
+import type { Backend, Benchmark, Scenario } from '../types'; import type { LiveTrace } from '../desktopApi';
 import { decodeFrame } from '../frameCodec';
 import { aggregationForGrid } from '../runConfig';
 
@@ -7,8 +7,8 @@ const ORDER: Backend[] = ['serial', 'openmp', 'cuda', 'mpi'];
 const COLORS = ['#151822', '#285d3b', '#ff6b35', '#2d2a32'];
 const LABELS: Record<Backend, string> = { serial: 'Serial', openmp: 'OpenMP', cuda: 'CUDA', mpi: 'MPI' };
 
-type Props = { records: Benchmark[]; rows: number; steps: number; selected: Backend[]; scenario?: Scenario; frameIndex: number };
-function FireCanvas({ scenario, frameIndex, label }: { scenario?: Scenario; frameIndex: number; label: string }) {
+type Props = { records: Benchmark[]; rows: number; steps: number; selected: Backend[]; scenario?: Scenario; liveTrace?: LiveTrace; frameIndex: number };
+function FireCanvas({ scenario, frameIndex, label }: { scenario?: Pick<Scenario | LiveTrace, 'frames'>; frameIndex: number; label: string }) {
   const ref = React.useRef<HTMLCanvasElement>(null);
   React.useEffect(() => {
     const canvas = ref.current; const frame = scenario?.frames[frameIndex]; if (!canvas || !frame) return;
@@ -21,8 +21,8 @@ function FireCanvas({ scenario, frameIndex, label }: { scenario?: Scenario; fram
   }, [scenario, frameIndex]);
   return <canvas ref={ref} className="backend-fire-canvas" width={500} height={500} aria-label={`${label} shared deterministic fire trace`} />;
 }
-export function FourBackendTimeComparison({ records, rows, steps, selected, scenario, frameIndex }: Props) {
-  const trace = scenario?.rows === rows ? scenario : undefined;
+export function FourBackendTimeComparison({ records, rows, steps, selected, scenario, liveTrace, frameIndex }: Props) {
+  const trace = liveTrace?.sourceRows === rows ? liveTrace : scenario?.rows === rows ? scenario : undefined;
   const current = ORDER.map((backend) => ({ backend, row: records.find((r) => r.backend === backend && r.rows === rows && r.cols === rows) })).filter(({ backend }) => selected.includes(backend));
   const successful = current.map(({ row }) => row).filter((row): row is Benchmark => Boolean(row));
   const duration = Math.max(...successful.map((row) => row.runtimeMs.median), 1);
