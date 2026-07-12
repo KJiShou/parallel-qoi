@@ -114,7 +114,8 @@ inline SimulationConfig parseArgs(int argc, char** argv, bool mpi = false) {
     if (cfg.ignitionRow >= cfg.rows || cfg.ignitionCol >= cfg.cols) throw std::invalid_argument("ignition coordinate is outside the grid");
     if (cfg.threads < 0 || cfg.blockSize <= 0 || cfg.repetitions <= 0 || cfg.warmup < 0 || cfg.frameInterval < 0) throw std::invalid_argument("invalid worker, timing, or frame parameter");
     if (cfg.blockSize != 128 && cfg.blockSize != 256 && cfg.blockSize != 512) throw std::invalid_argument("block-size must be 128, 256, or 512");
-    if (cfg.traceOnly && (cfg.steps < 1 || cfg.steps > 1000)) throw std::invalid_argument("trace steps must be between 1 and 1000");
+    if (cfg.traceOnly && (cfg.steps < 1 || cfg.steps > 2000)) throw std::invalid_argument("trace steps must be between 1 and 2000");
+    if (cfg.traceOnly && static_cast<std::uint64_t>(cfg.rows) * static_cast<std::uint64_t>(cfg.cols) * static_cast<std::uint64_t>(cfg.steps) > 2000000000ULL) throw std::invalid_argument("trace workload exceeds the trusted work budget");
     return cfg;
 }
 
