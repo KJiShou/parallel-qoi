@@ -59,3 +59,43 @@ MPI processes: 4
 ## Methodology Usage
 
 Use `methodology_code_snippets.md` for short code excerpts in the proposal. Do not paste the full source files into the report unless required.
+
+## Configurable Runs
+
+All backends use the same deterministic Moore-neighbourhood rules, fixed seed, double buffering, and JSON summary contract.
+
+```bash
+./build_verified/Release/wildfire_serial.exe --rows 512 --cols 512 --steps 200 --density 0.7 --seed 42 --repetitions 3 --output results/serial.json
+./build_verified/Release/wildfire_openmp.exe --rows 512 --cols 512 --steps 200 --density 0.7 --seed 42 --threads 8 --repetitions 3 --output results/openmp.json
+./build_verified/Release/wildfire_cuda.exe --rows 512 --cols 512 --steps 200 --density 0.7 --seed 42 --block-size 256 --repetitions 3 --output results/cuda.json
+mpiexec -n 4 ./build_verified/Release/wildfire_mpi.exe --rows 512 --cols 512 --steps 200 --density 0.7 --seed 42 --repetitions 3 --output results/mpi.json
+```
+
+## Verification and Benchmarking
+
+The correctness gate compares burned cells and checksum across all four implementations, including an MPI case with uneven row partitioning:
+
+```bash
+python scripts/verify_correctness.py --build-dir build_verified/Release
+python scripts/run_benchmarks.py --profile smoke --build-dir build_verified/Release
+```
+
+The benchmark driver writes raw JSON summaries and a consolidated CSV to `results/generated/`. Generated build/results files are ignored by Git.
+
+## Dashboard
+
+The dashboard reads precomputed frames and benchmark data. It does not launch or time the C++ executables from the browser.
+
+```bash
+mkdir -p dashboard/public/data
+./build_verified/Release/wildfire_serial.exe --rows 100 --cols 100 --steps 50 --density 0.7 --seed 42 --frame-interval 5 --frames results/demo_serial.json --output results/demo_summary.json
+cp results/demo_serial.json dashboard/public/data/demo_serial.json
+cp results/generated/benchmarks.json dashboard/public/data/benchmarks.json
+
+cd dashboard
+npm install
+npm run build
+npm run dev
+```
+
+The dashboard provides Canvas playback, play/pause and frame controls, wildfire state legend, current-frame statistics, and a benchmark result table.

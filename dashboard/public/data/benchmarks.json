@@ -1,0 +1,170 @@
+[
+  {
+    "backend": "serial",
+    "rows": 128,
+    "cols": 128,
+    "workers": 1,
+    "blockSize": 0,
+    "runtimeMs": {
+      "samples": [
+        8.661,
+        8.5542,
+        8.72
+      ],
+      "mean": 8.64506666667,
+      "median": 8.661,
+      "stddev": 0.0686188182806
+    },
+    "burnedCells": 11537,
+    "checksum": "5928926796389038004",
+    "speedup": 1.0,
+    "efficiency": null
+  },
+  {
+    "backend": "openmp",
+    "rows": 128,
+    "cols": 128,
+    "workers": 4,
+    "blockSize": 0,
+    "runtimeMs": {
+      "samples": [
+        2.4047,
+        2.3092,
+        2.312
+      ],
+      "mean": 2.34196666667,
+      "median": 2.312,
+      "stddev": 0.0443738912225
+    },
+    "burnedCells": 11537,
+    "checksum": "5928926796389038004",
+    "speedup": 3.7461072664359865,
+    "efficiency": 0.9365268166089966
+  },
+  {
+    "backend": "cuda",
+    "rows": 128,
+    "cols": 128,
+    "workers": 1,
+    "blockSize": 256,
+    "runtimeMs": {
+      "samples": [
+        0.7665,
+        0.7223,
+        0.6786
+      ],
+      "mean": 0.722466666667,
+      "median": 0.7223,
+      "stddev": 0.0358852182505
+    },
+    "burnedCells": 11537,
+    "checksum": "5928926796389038004",
+    "speedup": 11.990862522497576,
+    "efficiency": null
+  },
+  {
+    "backend": "mpi",
+    "rows": 128,
+    "cols": 128,
+    "workers": 4,
+    "blockSize": 0,
+    "runtimeMs": {
+      "samples": [
+        2.42070003878,
+        2.37479992211,
+        2.39939999301
+      ],
+      "mean": 2.39829998463,
+      "median": 2.39939999301,
+      "stddev": 0.0187547805729
+    },
+    "burnedCells": 11537,
+    "checksum": "5928926796389038004",
+    "speedup": 3.6096524236190173,
+    "efficiency": 0.9024131059047543
+  },
+  {
+    "backend": "serial",
+    "rows": 256,
+    "cols": 256,
+    "workers": 1,
+    "blockSize": 0,
+    "runtimeMs": {
+      "samples": [
+        51.943,
+        52.611,
+        49.7677
+      ],
+      "mean": 51.4405666667,
+      "median": 51.943,
+      "stddev": 1.21392425995
+    },
+    "burnedCells": 26342,
+    "checksum": "17260435159618725118",
+    "speedup": 1.0,
+    "efficiency": null
+  },
+  {
+    "backend": "openmp",
+    "rows": 256,
+    "cols": 256,
+    "workers": 4,
+    "blockSize": 0,
+    "runtimeMs": {
+      "samples": [
+        15.3451,
+        15.3447,
+        15.2385
+      ],
+      "mean": 15.3094333333,
+      "median": 15.3447,
+      "stddev": 0.0501577068411
+    },
+    "burnedCells": 26342,
+    "checksum": "17260435159618725118",
+    "speedup": 3.385077583791146,
+    "efficiency": 0.8462693959477865
+  },
+  {
+    "backend": "cuda",
+    "rows": 256,
+    "cols": 256,
+    "workers": 1,
+    "blockSize": 256,
+    "runtimeMs": {
+      "samples": [
+        1.0806,
+        0.9426,
+        0.9577
+      ],
+      "mean": 0.993633333333,
+      "median": 0.9577,
+      "stddev": 0.061802930531
+    },
+    "burnedCells": 26342,
+    "checksum": "17260435159618725118",
+    "speedup": 54.237235042288816,
+    "efficiency": null
+  },
+  {
+    "backend": "mpi",
+    "rows": 256,
+    "cols": 256,
+    "workers": 4,
+    "blockSize": 0,
+    "runtimeMs": {
+      "samples": [
+        16.4478999795,
+        15.831500059,
+        15.5674000271
+      ],
+      "mean": 15.9489333552,
+      "median": 15.831500059,
+      "stddev": 0.368929059007
+    },
+    "burnedCells": 26342,
+    "checksum": "17260435159618725118",
+    "speedup": 3.280990418243474,
+    "efficiency": 0.8202476045608685
+  }
+]

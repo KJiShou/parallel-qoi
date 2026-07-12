@@ -1,34 +1,12 @@
-# Build outputs
+# Generated build output
 build*/
-out/
-cmake-build-*/
-CMakeFiles/
-CMakeCache.txt
-cmake_install.cmake
-*.sln
-*.vcxproj
-*.vcxproj.filters
-*.vcxproj.user
-
-# Visual Studio / IDE
+results/generated/
+results/*.json
+*.user
+*.suo
 .vs/
-.vscode/
-.idea/
-
-# Binaries and debug symbols
-*.exe
-*.dll
-*.lib
-*.obj
-*.pdb
-*.ilk
-*.exp
-
-# CUDA / profiling / logs
-*.log
-*.tlog
-*.recipe
-
-# OS files
-.DS_Store
-Thumbs.db
+__pycache__/
+*.pyc
+dashboard/node_modules/
+dashboard/dist/
+dashboard/.vite/
