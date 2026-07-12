@@ -10,3 +10,4 @@ __pycache__/
 dashboard/node_modules/
 dashboard/dist/
 dashboard/.vite/
+dashboard/tsconfig.tsbuildinfo
