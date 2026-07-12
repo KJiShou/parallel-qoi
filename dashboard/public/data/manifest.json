@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "generated-local",
+  "visualizationScenarios": [
+    {
+      "id": "serial-100",
+      "label": "100 \u00d7 100",
+      "backend": "serial",
+      "rows": 100,
+      "cols": 100,
+      "steps": 200,
+      "frameInterval": 5,
+      "url": "./data/scenarios/serial-100.json"
+    },
+    {
+      "id": "serial-250",
+      "label": "250 \u00d7 250",
+      "backend": "serial",
+      "rows": 250,
+      "cols": 250,
+      "steps": 300,
+      "frameInterval": 10,
+      "url": "./data/scenarios/serial-250.json"
+    },
+    {
+      "id": "serial-500",
+      "label": "500 \u00d7 500",
+      "backend": "serial",
+      "rows": 500,
+      "cols": 500,
+      "steps": 400,
+      "frameInterval": 20,
+      "url": "./data/scenarios/serial-500.json"
+    }
+  ],
+  "benchmarksUrl": "./data/benchmarks.json"
+}
