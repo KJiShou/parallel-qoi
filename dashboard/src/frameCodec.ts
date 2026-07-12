@@ -1,30 +1,8 @@
 export function decode2BitCells(encoded: string, expectedLength: number): Uint8Array {
-  const binary = atob(encoded);
-  const output = new Uint8Array(expectedLength);
-  let index = 0;
-  for (let byteIndex = 0; byteIndex < binary.length && index < expectedLength; byteIndex += 1) {
-    const byte = binary.charCodeAt(byteIndex);
-    for (let shift = 0; shift < 8 && index < expectedLength; shift += 2) output[index++] = (byte >> shift) & 3;
-  }
-  if (index !== expectedLength) throw new Error(`Frame length mismatch: expected ${expectedLength}, decoded ${index}`);
-  return output;
+  const binary = atob(encoded); const output = new Uint8Array(expectedLength); let index = 0;
+  for (let byteIndex = 0; byteIndex < binary.length && index < expectedLength; byteIndex += 1) { const byte = binary.charCodeAt(byteIndex); for (let shift = 0; shift < 8 && index < expectedLength; shift += 2) output[index++] = (byte >> shift) & 3; }
+  if (index !== expectedLength) throw new Error(`Frame length mismatch: expected ${expectedLength}, decoded ${index}`); return output;
 }
-
-export function encode2BitCells(cells: number[]): string {
-  const bytes = new Uint8Array(Math.ceil(cells.length / 4));
-  cells.forEach((state, index) => {
-    if (!Number.isInteger(state) || state < 0 || state > 3) throw new Error(`Invalid cell state: ${state}`);
-    bytes[Math.floor(index / 4)] |= state << ((index % 4) * 2);
-  });
-  let binary = ''; bytes.forEach(byte => { binary += String.fromCharCode(byte); });
-  return btoa(binary);
-}
-
-export function decodeFrame(frame: { cells?: number[]; cells2BitBase64?: string }, expectedLength: number): Uint8Array {
-  if (frame.cells) {
-    if (frame.cells.length !== expectedLength) throw new Error('Frame length mismatch');
-    return Uint8Array.from(frame.cells);
-  }
-  if (!frame.cells2BitBase64) throw new Error('Frame has no cell payload');
-  return decode2BitCells(frame.cells2BitBase64, expectedLength);
-}
+export function decodeLodRgb(encoded: string, expectedPixels: number): Uint8Array { const binary = atob(encoded); const output = Uint8Array.from(binary, char => char.charCodeAt(0)); if (output.length !== expectedPixels * 3) throw new Error(`LOD frame length mismatch: expected ${expectedPixels*3}, decoded ${output.length}`); return output; }
+export function encode2BitCells(cells: number[]): string { const bytes = new Uint8Array(Math.ceil(cells.length / 4)); cells.forEach((state,index) => { if (!Number.isInteger(state)||state<0||state>3) throw new Error(`Invalid cell state: ${state}`); bytes[Math.floor(index/4)] |= state << ((index%4)*2); }); let binary=''; bytes.forEach(byte => { binary += String.fromCharCode(byte); }); return btoa(binary); }
+export function decodeFrame(frame: { cells?: number[]; cells2BitBase64?: string }, expectedLength: number): Uint8Array { if (frame.cells) { if (frame.cells.length !== expectedLength) throw new Error('Frame length mismatch'); return Uint8Array.from(frame.cells); } if (!frame.cells2BitBase64) throw new Error('Frame has no cell payload'); return decode2BitCells(frame.cells2BitBase64, expectedLength); }
