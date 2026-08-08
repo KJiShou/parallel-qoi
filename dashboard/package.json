@@ -1,0 +1,59 @@
+{
+  "name": "parallel-qoi-converter",
+  "version": "0.1.0",
+  "description": "Interactive Serial, OpenMP, CUDA and MPI QOI converter",
+  "author": "Parallel QOI Team",
+  "private": true,
+  "type": "module",
+  "main": "out/main/main.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@ant-design/plots": "^2.6.8",
+    "@arco-design/web-react": "^2.66.16",
+    "@vitejs/plugin-react": "^4.3.4",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.2",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8",
+    "electron-vite": "^2.3.0",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.5"
+  },
+  "build": {
+    "appId": "edu.parallelqoi.converter",
+    "productName": "Parallel QOI Converter",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "out/**",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "../build-full/Release",
+        "to": "native",
+        "filter": [
+          "pqoi_serial.exe",
+          "pqoi_openmp.exe",
+          "pqoi_cuda.exe",
+          "pqoi_mpi.exe",
+          "*.dll"
+        ]
+      }
+    ],
+    "win": {
+      "target": "nsis"
+    }
+  }
+}

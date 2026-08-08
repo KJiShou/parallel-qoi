@@ -1,0 +1,54 @@
+{
+  "version": 6,
+  "configurePresets": [
+    {
+      "name": "default",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "PQOI_ENABLE_OPENMP": "ON",
+        "PQOI_ENABLE_CUDA": "OFF",
+        "PQOI_ENABLE_MPI": "OFF",
+        "BUILD_TESTING": "ON"
+      }
+    },
+    {
+      "name": "windows-msvc",
+      "generator": "Visual Studio 17 2022",
+      "architecture": "x64",
+      "binaryDir": "${sourceDir}/build-msvc",
+      "cacheVariables": {
+        "PQOI_ENABLE_OPENMP": "ON",
+        "PQOI_ENABLE_CUDA": "OFF",
+        "PQOI_ENABLE_MPI": "OFF",
+        "BUILD_TESTING": "ON"
+      }
+    },
+    {
+      "name": "windows-full",
+      "generator": "Visual Studio 17 2022",
+      "architecture": "x64",
+      "binaryDir": "${sourceDir}/build-full",
+      "cacheVariables": {
+        "PQOI_ENABLE_OPENMP": "ON",
+        "PQOI_ENABLE_CUDA": "ON",
+        "PQOI_ENABLE_MPI": "ON",
+        "CMAKE_CUDA_ARCHITECTURES": "89",
+        "BUILD_TESTING": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "windows-msvc-release",
+      "configurePreset": "windows-msvc",
+      "configuration": "Release"
+    },
+    {
+      "name": "windows-full-release",
+      "configurePreset": "windows-full",
+      "configuration": "Release"
+    }
+  ]
+}
