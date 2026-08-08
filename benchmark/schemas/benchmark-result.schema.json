@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["status", "backend", "input", "configuration", "timing", "output", "validation"],
+  "properties": {
+    "status": {"enum": ["success", "validation_failed", "error"]},
+    "backend": {"type": "string"},
+    "error": {"type": "string"},
+    "input": {"type": "object", "required": ["width", "height", "channels"]},
+    "configuration": {"type": "object"},
+    "timing": {"type": "object", "required": ["load_ms", "summary_ms", "propagation_ms", "transfer_in_ms", "encode_ms", "transfer_out_ms", "merge_ms", "validation_ms", "total_ms"]},
+    "output": {"type": "object", "required": ["bytes", "compression_ratio", "throughput_mpixels"]},
+    "validation": {"type": "object", "required": ["passed", "pixel_match", "sha256_match"]}
+  }
+}

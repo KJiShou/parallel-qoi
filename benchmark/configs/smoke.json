@@ -1,0 +1,9 @@
+{
+  "backends": ["serial", "control", "openmp"],
+  "blocks": [1, 2, 4, 8],
+  "threads": [1, 2, 4],
+  "warmup_runs": 1,
+  "measured_runs": 5,
+  "validation_required": true
+}
+
