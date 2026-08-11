@@ -30,8 +30,16 @@ latency and excludes Electron, result JSON writing and the separately reported
 
 `load_ms` measures native input decode. `cuda_init_ms` and `allocation_ms` are
 CUDA-only setup phases and are zero for the other backends. Summary corresponds
-to Pass 1, propagation is state propagation, and encode is Pass 2. CUDA host/device transfers and MPI scatter/gather are reported as
-transfer in/out. `prefix_scan_ms` remains zero unless a backend actually
+to Pass 1, propagation is state propagation, and encode is Pass 2. OpenMP uses
+the configured worker count with static scheduling for both Pass 1 and Pass 2;
+its ordered state propagation remains sequential. For CUDA,
+`summary_ms` includes the GPU summary kernel and the small summary readback used
+for host state propagation; `prefix_scan_ms` measures the device exclusive scan,
+and `merge_ms` includes device compaction plus final host QOI assembly. For MPI,
+`summary_ms` includes the maximum rank-local summary time plus the summary
+gather to rank 0; `transfer_in_ms` includes pixel and propagated-state scatter.
+CUDA host/device transfers and the final MPI encoded-payload gather are reported
+as transfer in/out. `prefix_scan_ms` remains zero unless a backend actually
 performs a separately timed prefix scan; no value is inferred or fabricated.
 
 ## Derived metrics

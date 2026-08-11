@@ -17,7 +17,10 @@
 
 namespace {
 
-constexpr int state_bytes = 4 + 64 * 4;
+constexpr int colour_index_entries = 64;
+constexpr int packed_pixel_bytes = 4;
+constexpr int state_bytes = packed_pixel_bytes + colour_index_entries * packed_pixel_bytes;
+constexpr int summary_bytes = state_bytes + colour_index_entries;
 
 void write_bytes(const std::string& path, const std::vector<std::uint8_t>& bytes) {
     std::ofstream output(path, std::ios::binary);
@@ -36,14 +39,38 @@ pqoi::Pixel unpack_pixel(const unsigned char* source) {
 
 void pack_state(const pqoi::QoiState& state, unsigned char* destination) {
     pack_pixel(state.previous, destination);
-    for (std::size_t index = 0U; index < 64U; ++index) pack_pixel(state.index[index], destination + 4U + index * 4U);
+    for (std::size_t index = 0U; index < state.index.size(); ++index) {
+        pack_pixel(state.index[index], destination + packed_pixel_bytes + index * packed_pixel_bytes);
+    }
 }
 
 pqoi::QoiState unpack_state(const unsigned char* source) {
     pqoi::QoiState state;
     state.previous = unpack_pixel(source);
-    for (std::size_t index = 0U; index < 64U; ++index) state.index[index] = unpack_pixel(source + 4U + index * 4U);
+    for (std::size_t index = 0U; index < state.index.size(); ++index) {
+        state.index[index] = unpack_pixel(source + packed_pixel_bytes + index * packed_pixel_bytes);
+    }
     return state;
+}
+
+void pack_summary(const pqoi::BlockSummary& summary, unsigned char* destination) {
+    pack_pixel(summary.last_pixel, destination);
+    for (std::size_t index = 0U; index < summary.last_pixel_for_slot.size(); ++index) {
+        pack_pixel(summary.last_pixel_for_slot[index],
+                   destination + packed_pixel_bytes + index * packed_pixel_bytes);
+        destination[state_bytes + index] = summary.touched[index] ? 1U : 0U;
+    }
+}
+
+pqoi::BlockSummary unpack_summary(const unsigned char* source) {
+    pqoi::BlockSummary summary;
+    summary.last_pixel = unpack_pixel(source);
+    for (std::size_t index = 0U; index < summary.last_pixel_for_slot.size(); ++index) {
+        summary.last_pixel_for_slot[index] = unpack_pixel(
+            source + packed_pixel_bytes + index * packed_pixel_bytes);
+        summary.touched[index] = source[state_bytes + index] != 0U;
+    }
+    return summary;
 }
 
 int checked_count(const std::size_t value, const char* what) {
@@ -113,20 +140,6 @@ EncodeResult run_mpi_conversion(const std::string& input_path,
         rank_block_begin[static_cast<std::size_t>(index)] = actual_blocks * static_cast<std::size_t>(index) / static_cast<std::size_t>(world);
         rank_block_end[static_cast<std::size_t>(index)] = actual_blocks * static_cast<std::size_t>(index + 1) / static_cast<std::size_t>(world);
     }
-    std::vector<QoiState> entries;
-    if (rank == 0) {
-        const double summary_start = MPI_Wtime();
-        std::vector<BlockSummary> summaries;
-        summaries.reserve(blocks.size());
-        for (const Block block : blocks) summaries.push_back(summarize_block(image.pixels, block));
-        result.summary_ms = (MPI_Wtime() - summary_start) * 1000.0;
-        const double propagation_start = MPI_Wtime();
-        entries = propagate_states(summaries);
-        result.propagation_ms = (MPI_Wtime() - propagation_start) * 1000.0;
-        result.width = image.width; result.height = image.height; result.channels = image.channels;
-        result.load_ms = (preparation_start - total_start) * 1000.0;
-    }
-
     std::vector<int> pixel_counts(world);
     std::vector<int> pixel_displacements(world);
     for (int index = 0; index < world; ++index) {
@@ -134,18 +147,93 @@ EncodeResult run_mpi_conversion(const std::string& input_path,
         const std::size_t final_block = rank_block_end[static_cast<std::size_t>(index)];
         const std::size_t pixel_begin = first_block < actual_blocks ? blocks[first_block].begin : static_cast<std::size_t>(pixel_count);
         const std::size_t pixel_end = final_block > first_block ? blocks[final_block - 1U].end : pixel_begin;
-        pixel_counts[index] = checked_count((pixel_end - pixel_begin) * 4U, "MPI pixel block group");
-        pixel_displacements[index] = checked_count(pixel_begin * 4U, "MPI pixel displacement");
+        pixel_counts[index] = checked_count(
+            (pixel_end - pixel_begin) * packed_pixel_bytes, "MPI pixel block group");
+        pixel_displacements[index] = checked_count(
+            pixel_begin * packed_pixel_bytes, "MPI pixel displacement");
     }
     std::vector<unsigned char> packed_pixels;
     if (rank == 0) {
-        packed_pixels.resize(image.pixels.size() * 4U);
-        for (std::size_t index = 0U; index < image.pixels.size(); ++index) pack_pixel(image.pixels[index], packed_pixels.data() + index * 4U);
+        packed_pixels.resize(image.pixels.size() * packed_pixel_bytes);
+        for (std::size_t index = 0U; index < image.pixels.size(); ++index) {
+            pack_pixel(image.pixels[index], packed_pixels.data() + index * packed_pixel_bytes);
+        }
     }
     std::vector<unsigned char> local_packed(static_cast<std::size_t>(pixel_counts[rank]));
+    MPI_Barrier(MPI_COMM_WORLD);
     const double scatter_start = MPI_Wtime();
     MPI_Scatterv(rank == 0 ? packed_pixels.data() : nullptr, pixel_counts.data(), pixel_displacements.data(), MPI_UNSIGNED_CHAR,
                  local_packed.data(), pixel_counts[rank], MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
+    MPI_Barrier(MPI_COMM_WORLD);
+    const double pixel_scatter_elapsed = (MPI_Wtime() - scatter_start) * 1000.0;
+    MPI_Reduce(&pixel_scatter_elapsed, &result.transfer_in_ms, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+
+    std::vector<Pixel> local_pixels(static_cast<std::size_t>(pixel_counts[rank] / packed_pixel_bytes));
+    for (std::size_t index = 0U; index < local_pixels.size(); ++index) {
+        local_pixels[index] = unpack_pixel(local_packed.data() + index * packed_pixel_bytes);
+    }
+    const std::size_t local_block_begin = rank_block_begin[static_cast<std::size_t>(rank)];
+    const std::size_t local_block_end = rank_block_end[static_cast<std::size_t>(rank)];
+    const std::size_t global_pixel_begin = local_block_begin < actual_blocks
+        ? blocks[local_block_begin].begin
+        : static_cast<std::size_t>(pixel_count);
+
+    const double local_summary_start = MPI_Wtime();
+    std::vector<BlockSummary> local_summaries;
+    local_summaries.reserve(local_block_end - local_block_begin);
+    for (std::size_t block_index = local_block_begin; block_index < local_block_end; ++block_index) {
+        const Block global_block = blocks[block_index];
+        const Block local_block{
+            global_block.begin - global_pixel_begin,
+            global_block.end - global_pixel_begin};
+        local_summaries.push_back(summarize_block(local_pixels, local_block));
+    }
+    const double local_summary_ms = (MPI_Wtime() - local_summary_start) * 1000.0;
+    double max_summary_ms = 0.0;
+    MPI_Reduce(&local_summary_ms, &max_summary_ms, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+
+    std::vector<unsigned char> local_summary_bytes(local_summaries.size() * summary_bytes);
+    for (std::size_t index = 0U; index < local_summaries.size(); ++index) {
+        pack_summary(local_summaries[index], local_summary_bytes.data() + index * summary_bytes);
+    }
+    std::vector<int> summary_counts(world);
+    std::vector<int> summary_displacements(world);
+    for (int index = 0; index < world; ++index) {
+        summary_counts[index] = checked_count(
+            (rank_block_end[static_cast<std::size_t>(index)] -
+             rank_block_begin[static_cast<std::size_t>(index)]) * summary_bytes,
+            "MPI summary block group");
+        summary_displacements[index] = checked_count(
+            rank_block_begin[static_cast<std::size_t>(index)] * summary_bytes,
+            "MPI summary displacement");
+    }
+    std::vector<unsigned char> gathered_summaries;
+    if (rank == 0) gathered_summaries.resize(actual_blocks * summary_bytes);
+    MPI_Barrier(MPI_COMM_WORLD);
+    const double summary_gather_start = MPI_Wtime();
+    MPI_Gatherv(local_summary_bytes.data(), summary_counts[rank], MPI_UNSIGNED_CHAR,
+                rank == 0 ? gathered_summaries.data() : nullptr,
+                summary_counts.data(), summary_displacements.data(), MPI_UNSIGNED_CHAR,
+                0, MPI_COMM_WORLD);
+    MPI_Barrier(MPI_COMM_WORLD);
+    const double summary_gather_elapsed = (MPI_Wtime() - summary_gather_start) * 1000.0;
+    double max_summary_gather_ms = 0.0;
+    MPI_Reduce(&summary_gather_elapsed, &max_summary_gather_ms, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+
+    std::vector<QoiState> entries;
+    if (rank == 0) {
+        result.summary_ms = max_summary_ms + max_summary_gather_ms;
+        std::vector<BlockSummary> summaries;
+        summaries.reserve(actual_blocks);
+        for (std::size_t index = 0U; index < actual_blocks; ++index) {
+            summaries.push_back(unpack_summary(gathered_summaries.data() + index * summary_bytes));
+        }
+        const double propagation_start = MPI_Wtime();
+        entries = propagate_states(summaries);
+        result.propagation_ms = (MPI_Wtime() - propagation_start) * 1000.0;
+        result.width = image.width; result.height = image.height; result.channels = image.channels;
+        result.load_ms = (preparation_start - total_start) * 1000.0;
+    }
 
     std::vector<unsigned char> packed_states;
     if (rank == 0) {
@@ -164,21 +252,18 @@ EncodeResult run_mpi_conversion(const std::string& input_path,
                                                    "MPI state displacement");
     }
     std::vector<unsigned char> local_states(static_cast<std::size_t>(state_counts[rank]));
+    MPI_Barrier(MPI_COMM_WORLD);
+    const double state_scatter_start = MPI_Wtime();
     MPI_Scatterv(rank == 0 ? packed_states.data() : nullptr, state_counts.data(), state_displacements.data(), MPI_UNSIGNED_CHAR,
                  local_states.data(), state_counts[rank], MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
     MPI_Barrier(MPI_COMM_WORLD);
-    double scatter_elapsed = (MPI_Wtime() - scatter_start) * 1000.0;
-    MPI_Reduce(&scatter_elapsed, &result.transfer_in_ms, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+    const double state_scatter_elapsed = (MPI_Wtime() - state_scatter_start) * 1000.0;
+    double max_state_scatter_ms = 0.0;
+    MPI_Reduce(&state_scatter_elapsed, &max_state_scatter_ms, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+    if (rank == 0) result.transfer_in_ms += max_state_scatter_ms;
 
-    std::vector<Pixel> local_pixels(static_cast<std::size_t>(pixel_counts[rank] / 4));
-    for (std::size_t index = 0U; index < local_pixels.size(); ++index) local_pixels[index] = unpack_pixel(local_packed.data() + index * 4U);
     const double local_encode_start = MPI_Wtime();
     std::vector<std::uint8_t> local_bytes;
-    const std::size_t local_block_begin = rank_block_begin[static_cast<std::size_t>(rank)];
-    const std::size_t local_block_end = rank_block_end[static_cast<std::size_t>(rank)];
-    const std::size_t global_pixel_begin = local_block_begin < actual_blocks
-        ? blocks[local_block_begin].begin
-        : static_cast<std::size_t>(pixel_count);
     for (std::size_t block_index = local_block_begin; block_index < local_block_end; ++block_index) {
         const Block global_block = blocks[block_index];
         const Block local_block{global_block.begin - global_pixel_begin, global_block.end - global_pixel_begin};

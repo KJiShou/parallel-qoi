@@ -19,7 +19,7 @@ These are the main files to edit when working on parallel algorithms:
 | Backend | Algorithm file | Responsibility |
 | --- | --- | --- |
 | Serial | `src/backends/serial_encoder.cpp` | Sequential block encoding and correctness baseline |
-| OpenMP | `src/backends/openmp_encoder.cpp` | Static-scheduled CPU block encoding |
+| OpenMP | `src/backends/openmp_encoder.cpp` | Static-scheduled CPU block summary and encoding |
 | CUDA | `src/backends/cuda_encoder.cu` | GPU block kernel, transfers, and device output merge |
 | MPI | `src/backends/mpi_encoder.cpp` | Rank distribution, local encoding, gather, and rank-0 merge |
 

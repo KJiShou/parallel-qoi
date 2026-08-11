@@ -4,6 +4,8 @@
 
 #include <algorithm>
 #include <chrono>
+#include <limits>
+#include <stdexcept>
 #include <vector>
 
 namespace {
@@ -21,15 +23,29 @@ namespace pqoi {
 std::vector<std::uint8_t> encode_openmp_qoi(const Image& image,
                                             const EncodeOptions& options,
                                             EncodeResult* metrics) {
+    const std::size_t requested_threads = std::max<std::size_t>(1U, options.threads);
+    if (requested_threads > static_cast<std::size_t>((std::numeric_limits<int>::max)())) {
+        throw std::runtime_error("OpenMP thread count exceeds the supported range");
+    }
     const std::size_t requested_blocks = options.blocks == 0U
-        ? std::max<std::size_t>(1U, options.threads * 2U)
+        ? requested_threads * 2U
         : options.blocks;
 
     const auto summary_start = clock_type::now();
     const std::vector<Block> blocks = partition_blocks(image.pixels.size(), requested_blocks);
-    std::vector<BlockSummary> summaries;
-    summaries.reserve(blocks.size());
-    for (const Block block : blocks) summaries.push_back(summarize_block(image.pixels, block));
+    if (blocks.size() > static_cast<std::size_t>((std::numeric_limits<int>::max)())) {
+        throw std::runtime_error("OpenMP block count exceeds the supported loop range");
+    }
+    const int block_count = static_cast<int>(blocks.size());
+    const int thread_count = static_cast<int>(requested_threads);
+    std::vector<BlockSummary> summaries(blocks.size());
+#ifdef PQOI_HAS_OPENMP
+#pragma omp parallel for schedule(static) num_threads(thread_count)
+#endif
+    for (int index_value = 0; index_value < block_count; ++index_value) {
+        const std::size_t index = static_cast<std::size_t>(index_value);
+        summaries[index] = summarize_block(image.pixels, blocks[index]);
+    }
     if (metrics) {
         metrics->blocks = blocks.size();
         metrics->summary_ms = elapsed_ms(summary_start, clock_type::now());
@@ -42,9 +58,9 @@ std::vector<std::uint8_t> encode_openmp_qoi(const Image& image,
     const auto encode_start = clock_type::now();
     std::vector<std::vector<std::uint8_t>> block_bytes(blocks.size());
 #ifdef PQOI_HAS_OPENMP
-#pragma omp parallel for schedule(static) num_threads(static_cast<int>(std::max<std::size_t>(1U, options.threads)))
+#pragma omp parallel for schedule(static) num_threads(thread_count)
 #endif
-    for (int index_value = 0; index_value < static_cast<int>(blocks.size()); ++index_value) {
+    for (int index_value = 0; index_value < block_count; ++index_value) {
         const std::size_t index = static_cast<std::size_t>(index_value);
         encode_qoi_block(image.pixels, blocks[index], entries[index], block_bytes[index]);
     }
