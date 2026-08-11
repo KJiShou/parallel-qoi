@@ -44,6 +44,8 @@ endfunction()
 
 add_pqoi_cli(pqoi_serial src/cli/serial_main.cpp serial)
 add_pqoi_cli(pqoi_control src/cli/control_main.cpp one-pass)
+add_executable(pqoi_decode_preview src/cli/decode_preview_main.cpp)
+target_link_libraries(pqoi_decode_preview PRIVATE pqoi_core)
 
 if (PQOI_ENABLE_OPENMP)
     find_package(OpenMP QUIET)

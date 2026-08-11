@@ -1,0 +1,63 @@
+{
+  "name": "correctness-dataset",
+  "sampling_rule": "all supported images",
+  "root": "D:\\JiShou\\JS_Obsidian\\parallel-qoi\\data\\conformance\\qoi_test_images",
+  "images": [
+    {
+      "id": "dice-30d0276451",
+      "path": "..\\..\\data\\conformance\\qoi_test_images\\dice.png",
+      "category": "qoi_test_images",
+      "channel_mode": "unknown",
+      "stage": "correctness"
+    },
+    {
+      "id": "edgecase-1bfd83bbf2",
+      "path": "..\\..\\data\\conformance\\qoi_test_images\\edgecase.png",
+      "category": "qoi_test_images",
+      "channel_mode": "unknown",
+      "stage": "correctness"
+    },
+    {
+      "id": "kodim10-257559d85a",
+      "path": "..\\..\\data\\conformance\\qoi_test_images\\kodim10.png",
+      "category": "qoi_test_images",
+      "channel_mode": "unknown",
+      "stage": "correctness"
+    },
+    {
+      "id": "kodim23-11ebbca2f3",
+      "path": "..\\..\\data\\conformance\\qoi_test_images\\kodim23.png",
+      "category": "qoi_test_images",
+      "channel_mode": "unknown",
+      "stage": "correctness"
+    },
+    {
+      "id": "qoi_logo-65dbaf2994",
+      "path": "..\\..\\data\\conformance\\qoi_test_images\\qoi_logo.png",
+      "category": "qoi_test_images",
+      "channel_mode": "unknown",
+      "stage": "correctness"
+    },
+    {
+      "id": "testcard-672427a23b",
+      "path": "..\\..\\data\\conformance\\qoi_test_images\\testcard.png",
+      "category": "qoi_test_images",
+      "channel_mode": "unknown",
+      "stage": "correctness"
+    },
+    {
+      "id": "testcard_rgba-148372322d",
+      "path": "..\\..\\data\\conformance\\qoi_test_images\\testcard_rgba.png",
+      "category": "qoi_test_images",
+      "channel_mode": "unknown",
+      "stage": "correctness"
+    },
+    {
+      "id": "wikipedia_008-53bbea258f",
+      "path": "..\\..\\data\\conformance\\qoi_test_images\\wikipedia_008.png",
+      "category": "qoi_test_images",
+      "channel_mode": "unknown",
+      "stage": "correctness"
+    }
+  ]
+}

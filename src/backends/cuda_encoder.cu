@@ -136,9 +136,15 @@ namespace pqoi {
 std::vector<std::uint8_t> encode_cuda_qoi(const Image& image,
                                           const EncodeOptions& options,
                                           EncodeResult* metrics) {
+    const auto cuda_init_start = clock_type::now();
     int device_count = 0;
     check_cuda(cudaGetDeviceCount(&device_count), "cudaGetDeviceCount");
     if (device_count <= 0) throw std::runtime_error("CUDA-compatible NVIDIA GPU not detected");
+    check_cuda(cudaSetDevice(0), "select CUDA device");
+    // cudaFree(nullptr) forces lazy CUDA runtime/context initialization. Keeping
+    // it in its own phase prevents first-use driver cost from looking like encode.
+    check_cuda(cudaFree(nullptr), "initialize CUDA context");
+    if (metrics) metrics->cuda_init_ms = elapsed_ms(cuda_init_start, clock_type::now());
 
     const std::size_t segment_blocks = options.segment_length == 0U
         ? 1U
@@ -176,11 +182,13 @@ std::vector<std::uint8_t> encode_cuda_qoi(const Image& image,
     unsigned char* device_output = nullptr;
     unsigned int* device_lengths = nullptr;
     try {
+        const auto allocation_start = clock_type::now();
         check_cuda(cudaMalloc(reinterpret_cast<void**>(&device_pixels), host_pixels.size() * sizeof(DevicePixel)), "cudaMalloc pixels");
         check_cuda(cudaMalloc(reinterpret_cast<void**>(&device_blocks), host_blocks.size() * sizeof(DeviceBlock)), "cudaMalloc blocks");
         check_cuda(cudaMalloc(reinterpret_cast<void**>(&device_states), host_states.size() * sizeof(DeviceState)), "cudaMalloc states");
         check_cuda(cudaMalloc(reinterpret_cast<void**>(&device_output), output_size), "cudaMalloc output");
         check_cuda(cudaMalloc(reinterpret_cast<void**>(&device_lengths), blocks.size() * sizeof(unsigned int)), "cudaMalloc lengths");
+        if (metrics) metrics->allocation_ms = elapsed_ms(allocation_start, clock_type::now());
         const auto copy_start = clock_type::now();
         check_cuda(cudaMemcpy(device_pixels, host_pixels.data(), host_pixels.size() * sizeof(DevicePixel), cudaMemcpyHostToDevice), "copy pixels");
         check_cuda(cudaMemcpy(device_blocks, host_blocks.data(), host_blocks.size() * sizeof(DeviceBlock), cudaMemcpyHostToDevice), "copy blocks");

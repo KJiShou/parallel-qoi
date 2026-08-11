@@ -4,6 +4,11 @@ import { ProcessRunner } from './processRunner'
 import { TempFileService } from './tempFileService'
 import type { BackendId, ConversionRequest, ConversionResponse, NativeResult, SelectedImage } from './types'
 
+function finiteNonNegative(value: unknown): number {
+  const numeric = Number(value)
+  return Number.isFinite(numeric) && numeric >= 0 ? numeric : 0
+}
+
 function normalizeResult(raw: Partial<NativeResult>, request: ConversionRequest, image: SelectedImage, job: { outputPath: string; previewPath: string }): NativeResult {
   const rawTiming = raw.timing
   const rawValidation = raw.validation
@@ -14,17 +19,24 @@ function normalizeResult(raw: Partial<NativeResult>, request: ConversionRequest,
     input: raw.input ?? { path: image.inputPath, width: image.width, height: image.height, channels: image.channels },
     configuration: raw.configuration ?? { blocks: request.blocks ?? 8, threads: request.threads ?? 4, segment_length: request.segmentLength ?? 1024 },
     timing: {
-      load_ms: rawTiming?.load_ms ?? 0,
-      summary_ms: rawTiming?.summary_ms ?? 0,
-      propagation_ms: rawTiming?.propagation_ms ?? 0,
-      transfer_in_ms: rawTiming?.transfer_in_ms ?? 0,
-      encode_ms: rawTiming?.encode_ms ?? 0,
-      transfer_out_ms: rawTiming?.transfer_out_ms ?? 0,
-      merge_ms: rawTiming?.merge_ms ?? 0,
-      validation_ms: rawTiming?.validation_ms ?? 0,
-      total_ms: rawTiming?.total_ms ?? 0,
+      load_ms: finiteNonNegative(rawTiming?.load_ms),
+      cuda_init_ms: finiteNonNegative(rawTiming?.cuda_init_ms),
+      allocation_ms: finiteNonNegative(rawTiming?.allocation_ms),
+      summary_ms: finiteNonNegative(rawTiming?.summary_ms),
+      propagation_ms: finiteNonNegative(rawTiming?.propagation_ms),
+      transfer_in_ms: finiteNonNegative(rawTiming?.transfer_in_ms),
+      encode_ms: finiteNonNegative(rawTiming?.encode_ms),
+      transfer_out_ms: finiteNonNegative(rawTiming?.transfer_out_ms),
+      merge_ms: finiteNonNegative(rawTiming?.merge_ms),
+      prefix_scan_ms: finiteNonNegative(rawTiming?.prefix_scan_ms),
+      write_ms: finiteNonNegative(rawTiming?.write_ms),
+      metrics_analysis_ms: finiteNonNegative(rawTiming?.metrics_analysis_ms),
+      validation_ms: finiteNonNegative(rawTiming?.validation_ms),
+      total_ms: finiteNonNegative(rawTiming?.total_ms),
     },
     output: raw.output ?? { path: job.outputPath, bytes: 0, compression_ratio: 0, throughput_mpixels: 0 },
+    chunks: raw.chunks ?? { run: 0, index: 0, diff: 0, luma: 0, rgb: 0, rgba: 0 },
+    cross_block: raw.cross_block ?? { inherited_index_hits: 0, fallback_bytes_avoided: 0 },
     preview_path: raw.preview_path ?? job.previewPath,
     validation: {
       passed: rawValidation?.passed ?? false,

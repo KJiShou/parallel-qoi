@@ -72,7 +72,9 @@ EncodeResult run_mpi_conversion(const std::string& input_path,
     result.output_path = output_path;
     result.preview_path = preview_path;
     result.result_path = result_path;
-    result.blocks = static_cast<std::size_t>(world);
+    const std::size_t requested_blocks = std::max<std::size_t>(
+        static_cast<std::size_t>(world), options.blocks == 0U ? static_cast<std::size_t>(world) : options.blocks);
+    result.blocks = requested_blocks;
     result.threads = static_cast<std::size_t>(world);
     result.segment_length = options.segment_length;
     const double total_start = MPI_Wtime();
@@ -102,7 +104,15 @@ EncodeResult run_mpi_conversion(const std::string& input_path,
     }
 
     const double preparation_start = MPI_Wtime();
-    const std::vector<Block> blocks = partition_blocks(static_cast<std::size_t>(pixel_count), static_cast<std::size_t>(world));
+    const std::vector<Block> blocks = partition_blocks(static_cast<std::size_t>(pixel_count), requested_blocks);
+    const std::size_t actual_blocks = blocks.size();
+    result.blocks = actual_blocks;
+    std::vector<std::size_t> rank_block_begin(static_cast<std::size_t>(world));
+    std::vector<std::size_t> rank_block_end(static_cast<std::size_t>(world));
+    for (int index = 0; index < world; ++index) {
+        rank_block_begin[static_cast<std::size_t>(index)] = actual_blocks * static_cast<std::size_t>(index) / static_cast<std::size_t>(world);
+        rank_block_end[static_cast<std::size_t>(index)] = actual_blocks * static_cast<std::size_t>(index + 1) / static_cast<std::size_t>(world);
+    }
     std::vector<QoiState> entries;
     if (rank == 0) {
         const double summary_start = MPI_Wtime();
@@ -120,8 +130,12 @@ EncodeResult run_mpi_conversion(const std::string& input_path,
     std::vector<int> pixel_counts(world);
     std::vector<int> pixel_displacements(world);
     for (int index = 0; index < world; ++index) {
-        pixel_counts[index] = checked_count((blocks[static_cast<std::size_t>(index)].end - blocks[static_cast<std::size_t>(index)].begin) * 4U, "MPI pixel block");
-        pixel_displacements[index] = index == 0 ? 0 : pixel_displacements[index - 1] + pixel_counts[index - 1];
+        const std::size_t first_block = rank_block_begin[static_cast<std::size_t>(index)];
+        const std::size_t final_block = rank_block_end[static_cast<std::size_t>(index)];
+        const std::size_t pixel_begin = first_block < actual_blocks ? blocks[first_block].begin : static_cast<std::size_t>(pixel_count);
+        const std::size_t pixel_end = final_block > first_block ? blocks[final_block - 1U].end : pixel_begin;
+        pixel_counts[index] = checked_count((pixel_end - pixel_begin) * 4U, "MPI pixel block group");
+        pixel_displacements[index] = checked_count(pixel_begin * 4U, "MPI pixel displacement");
     }
     std::vector<unsigned char> packed_pixels;
     if (rank == 0) {
@@ -135,12 +149,23 @@ EncodeResult run_mpi_conversion(const std::string& input_path,
 
     std::vector<unsigned char> packed_states;
     if (rank == 0) {
-        packed_states.resize(static_cast<std::size_t>(world) * state_bytes);
-        for (int index = 0; index < world; ++index) pack_state(entries[static_cast<std::size_t>(index)], packed_states.data() + static_cast<std::size_t>(index) * state_bytes);
+        packed_states.resize(actual_blocks * state_bytes);
+        for (std::size_t index = 0U; index < actual_blocks; ++index) {
+            pack_state(entries[index], packed_states.data() + index * state_bytes);
+        }
     }
-    std::vector<unsigned char> local_state(state_bytes);
-    MPI_Scatter(rank == 0 ? packed_states.data() : nullptr, state_bytes, MPI_UNSIGNED_CHAR,
-                local_state.data(), state_bytes, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
+    std::vector<int> state_counts(world);
+    std::vector<int> state_displacements(world);
+    for (int index = 0; index < world; ++index) {
+        state_counts[index] = checked_count(
+            (rank_block_end[static_cast<std::size_t>(index)] - rank_block_begin[static_cast<std::size_t>(index)]) * state_bytes,
+            "MPI state block group");
+        state_displacements[index] = checked_count(rank_block_begin[static_cast<std::size_t>(index)] * state_bytes,
+                                                   "MPI state displacement");
+    }
+    std::vector<unsigned char> local_states(static_cast<std::size_t>(state_counts[rank]));
+    MPI_Scatterv(rank == 0 ? packed_states.data() : nullptr, state_counts.data(), state_displacements.data(), MPI_UNSIGNED_CHAR,
+                 local_states.data(), state_counts[rank], MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
     MPI_Barrier(MPI_COMM_WORLD);
     double scatter_elapsed = (MPI_Wtime() - scatter_start) * 1000.0;
     MPI_Reduce(&scatter_elapsed, &result.transfer_in_ms, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
@@ -149,7 +174,18 @@ EncodeResult run_mpi_conversion(const std::string& input_path,
     for (std::size_t index = 0U; index < local_pixels.size(); ++index) local_pixels[index] = unpack_pixel(local_packed.data() + index * 4U);
     const double local_encode_start = MPI_Wtime();
     std::vector<std::uint8_t> local_bytes;
-    encode_qoi_block(local_pixels, Block{0U, local_pixels.size()}, unpack_state(local_state.data()), local_bytes);
+    const std::size_t local_block_begin = rank_block_begin[static_cast<std::size_t>(rank)];
+    const std::size_t local_block_end = rank_block_end[static_cast<std::size_t>(rank)];
+    const std::size_t global_pixel_begin = local_block_begin < actual_blocks
+        ? blocks[local_block_begin].begin
+        : static_cast<std::size_t>(pixel_count);
+    for (std::size_t block_index = local_block_begin; block_index < local_block_end; ++block_index) {
+        const Block global_block = blocks[block_index];
+        const Block local_block{global_block.begin - global_pixel_begin, global_block.end - global_pixel_begin};
+        const std::size_t local_state_index = block_index - local_block_begin;
+        encode_qoi_block(local_pixels, local_block,
+                         unpack_state(local_states.data() + local_state_index * state_bytes), local_bytes);
+    }
     const double local_encode_ms = (MPI_Wtime() - local_encode_start) * 1000.0;
     MPI_Reduce(&local_encode_ms, &result.encode_ms, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
 
@@ -186,17 +222,27 @@ EncodeResult run_mpi_conversion(const std::string& input_path,
         result.output_bytes = encoded.size();
         result.compression_ratio = encoded.empty() ? 0.0 : static_cast<double>(image.pixels.size() * image.channels) / encoded.size();
         result.throughput_mpixels = result.encode_ms <= 0.0 ? 0.0 : static_cast<double>(image.pixels.size()) / (result.encode_ms * 1000.0);
+        const double write_start = MPI_Wtime();
         write_bytes(output_path, encoded);
+        result.write_ms = (MPI_Wtime() - write_start) * 1000.0;
         if (validate) {
             const double validation_start = MPI_Wtime();
-            result.validation_passed = validate_qoi(output_path, image);
-            result.pixel_match = result.validation_passed;
-            result.sha256_match = sha256_match_qoi(output_path, image);
+            const ValidationDetails details = validate_qoi_detailed(output_path, image);
+            result.decoder_accepted = details.decoder_accepted;
+            result.dimensions_match = details.dimensions_match;
+            result.channels_match = details.channels_match;
+            result.pixel_match = details.pixel_match;
+            result.sha256_match = details.sha256_match;
+            result.validation_passed = details.passed();
             if (result.validation_passed && !preview_path.empty()) write_bmp(preview_path, decode_qoi(output_path));
             result.validation_ms = (MPI_Wtime() - validation_start) * 1000.0;
         }
         result.status = result.validation_passed || !validate ? "success" : "validation_failed";
         result.total_ms = (MPI_Wtime() - total_start) * 1000.0;
+        const double analysis_start = MPI_Wtime();
+        populate_chunk_distribution(encoded, result);
+        analyze_cross_block_benefit(image, result.blocks, result);
+        result.metrics_analysis_ms = (MPI_Wtime() - analysis_start) * 1000.0;
         if (!result_path.empty()) write_result_json(result_path, result);
     }
     int status_code = rank == 0 && result.status == "success" ? 0 : (rank == 0 ? 1 : 0);

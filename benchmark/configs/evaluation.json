@@ -1,0 +1,35 @@
+{
+  "warmup_runs": 1,
+  "measured_runs": 5,
+  "defaults": {
+    "threads": 1,
+    "blocks": 1,
+    "segment_length": 1024,
+    "processes": 1
+  },
+  "stages": {
+    "correctness": {
+      "backends": ["serial", "openmp", "cuda", "mpi"]
+    },
+    "tuning": {
+      "target_images": 160,
+      "images_per_category": 20
+    },
+    "full": {
+      "backends": ["serial", "control", "openmp", "cuda", "mpi"]
+    }
+  },
+  "tuning_grid": {
+    "openmp_threads": [1, 2, 4, 8, 16],
+    "mpi_processes": [1, 2, 4, 8],
+    "cuda_segment_lengths": [256, 512, 1024, 2048, 4096],
+    "block_multipliers": [1, 2, 4]
+  },
+  "best_configurations": {
+    "serial": {"threads": 1, "blocks": 1},
+    "control": {"threads": 1, "blocks": 8},
+    "openmp": {"threads": 8, "blocks": 32},
+    "cuda": {"segment_length": 256, "blocks": 2},
+    "mpi": {"processes": 8, "blocks": 16}
+  }
+}

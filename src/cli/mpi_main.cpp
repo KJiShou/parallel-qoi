@@ -17,6 +17,7 @@ struct MpiCliArgs {
     std::string preview;
     pqoi::EncodeOptions options{"mpi", 0U, 1U, 1024U};
     bool validate{false};
+    bool preview_disabled{false};
 };
 
 struct HelpRequested {};
@@ -32,13 +33,14 @@ MpiCliArgs parse_args(const int argc, char** argv, const int world_size, const i
     for (int index = 1; index < argc; ++index) {
         const std::string flag = argv[index];
         if (flag == "--help" || flag == "-h") {
-            if (rank == 0) std::cout << "Usage: pqoi_mpi --input <path> --output <path> [--result <path>] [--preview <path>] [--threads <count>] [--validate]\n";
+            if (rank == 0) std::cout << "Usage: pqoi_mpi --input <path> --output <path> [--result <path>] [--preview <path> | --no-preview] [--threads <count>] [--validate]\n";
             throw HelpRequested{};
         }
         if (flag == "--input") args.input = next_value(index, argc, argv, "--input");
         else if (flag == "--output") args.output = next_value(index, argc, argv, "--output");
         else if (flag == "--result") args.result = next_value(index, argc, argv, "--result");
         else if (flag == "--preview") args.preview = next_value(index, argc, argv, "--preview");
+        else if (flag == "--no-preview") args.preview_disabled = true;
         else if (flag == "--blocks") args.options.blocks = std::stoull(next_value(index, argc, argv, "--blocks"));
         else if (flag == "--threads") args.options.threads = std::stoull(next_value(index, argc, argv, "--threads"));
         else if (flag == "--segment-length") args.options.segment_length = std::stoull(next_value(index, argc, argv, "--segment-length"));
@@ -47,7 +49,7 @@ MpiCliArgs parse_args(const int argc, char** argv, const int world_size, const i
     }
     if (args.input.empty() || args.output.empty()) throw std::runtime_error("--input and --output are required");
     if (args.result.empty()) args.result = args.output + ".json";
-    if (args.preview.empty()) args.preview = args.output + ".bmp";
+    if (args.preview.empty() && !args.preview_disabled) args.preview = args.output + ".bmp";
     return args;
 }
 

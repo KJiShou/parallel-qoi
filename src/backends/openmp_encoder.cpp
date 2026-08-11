@@ -48,11 +48,11 @@ std::vector<std::uint8_t> encode_openmp_qoi(const Image& image,
         const std::size_t index = static_cast<std::size_t>(index_value);
         encode_qoi_block(image.pixels, blocks[index], entries[index], block_bytes[index]);
     }
-    if (metrics) {
-        metrics->encode_ms = elapsed_ms(encode_start, clock_type::now());
-        metrics->merge_ms = 0.0;
-    }
-    return assemble_qoi(image, block_bytes);
+    if (metrics) metrics->encode_ms = elapsed_ms(encode_start, clock_type::now());
+    const auto merge_start = clock_type::now();
+    std::vector<std::uint8_t> encoded = assemble_qoi(image, block_bytes);
+    if (metrics) metrics->merge_ms = elapsed_ms(merge_start, clock_type::now());
+    return encoded;
 }
 
 }  // namespace pqoi
