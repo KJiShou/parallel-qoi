@@ -369,6 +369,14 @@ input:focus-visible,
 .parameter-panel { border-top: 1px solid var(--line); padding-top: 14px; }
 .parameter-panel .arco-form-item { margin-bottom: 10px; }
 
+.compare-parameter-list { width: 100%; display: grid; gap: 14px; }
+.compare-parameter-section { width: 100%; padding-top: 14px; border-top: 1px solid var(--line); }
+.compare-parameter-section:first-child { padding-top: 0; border-top: 0; }
+.compare-parameter-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+.backend-config-name { color: var(--ink); font-weight: 700; }
+.compare-parameter-section .parameter-panel { border-top: 0; padding-top: 0; }
+.compare-parameter-section .parameter-panel .arco-form { margin-top: 0; }
+
 .parameter-panel .arco-input-number,
 .parameter-panel .arco-input-number:hover,
 .parameter-panel .arco-input-number:focus-within {
@@ -397,7 +405,8 @@ input:focus-visible,
 .performance-chart,
 .results-table-wrap { width: 100%; min-width: 0; }
 
-.performance-tabs .arco-tabs-content { padding-top: 8px; }
+.performance-tabs .arco-tabs-content { padding-top: 8px; overflow: visible; }
+.performance-tabs .arco-tabs-content-item-active { overflow: visible; }
 
 .performance-chart {
   min-height: 280px;
@@ -409,6 +418,23 @@ input:focus-visible,
 }
 
 .performance-chart > div { width: 100%; }
+.phase-performance-chart { position: relative; z-index: 2; overflow: visible; }
+
+.phase-chart-note {
+  display: block;
+  margin-top: 8px;
+  color: var(--muted) !important;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.phase-tooltip { min-width: 220px; display: grid; gap: 9px; padding: 2px 0; color: var(--ink); }
+.phase-tooltip-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+.phase-tooltip-list { display: grid; gap: 6px; }
+.phase-tooltip-row { display: grid; grid-template-columns: 8px minmax(0, 1fr) auto; align-items: center; gap: 8px; }
+.phase-tooltip-marker { width: 8px; height: 8px; border-radius: 50%; }
+.phase-tooltip-name { color: var(--muted); font-size: 12px; }
+.phase-tooltip-value { color: var(--ink); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
 .chart-empty {
   min-height: 260px;

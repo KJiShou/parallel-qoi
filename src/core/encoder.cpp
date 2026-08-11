@@ -59,23 +59,34 @@ EncodeResult run_conversion(const std::string& input_path,
         result.throughput_mpixels = result.encode_ms <= 0.0
             ? 0.0
             : static_cast<double>(image.pixels.size()) / (result.encode_ms * 1000.0);
+        const auto write_start = clock_type::now();
         write_bytes(output_path, encoded);
+        result.write_ms = elapsed_ms(write_start, clock_type::now());
         if (validate) {
             const auto validation_start = clock_type::now();
-            result.validation_passed = validate_qoi(output_path, image);
-            result.pixel_match = result.validation_passed;
-            result.sha256_match = sha256_match_qoi(output_path, image);
+            const ValidationDetails details = validate_qoi_detailed(output_path, image);
+            result.decoder_accepted = details.decoder_accepted;
+            result.dimensions_match = details.dimensions_match;
+            result.channels_match = details.channels_match;
+            result.pixel_match = details.pixel_match;
+            result.sha256_match = details.sha256_match;
+            result.validation_passed = details.passed();
             if (result.validation_passed && !preview_path.empty()) {
                 write_bmp(preview_path, decode_qoi(output_path));
             }
             result.validation_ms = elapsed_ms(validation_start, clock_type::now());
         }
         result.status = result.validation_passed || !validate ? "success" : "validation_failed";
+        result.total_ms = elapsed_ms(total_start, clock_type::now());
+        const auto analysis_start = clock_type::now();
+        populate_chunk_distribution(encoded, result);
+        if (options.backend != "one-pass") analyze_cross_block_benefit(image, result.blocks, result);
+        result.metrics_analysis_ms = elapsed_ms(analysis_start, clock_type::now());
     } catch (const std::exception& error) {
         result.status = "error";
         result.error = error.what();
     }
-    result.total_ms = elapsed_ms(total_start, clock_type::now());
+    if (result.total_ms <= 0.0) result.total_ms = elapsed_ms(total_start, clock_type::now());
     if (!result_path.empty()) write_result_json(result_path, result);
     return result;
 }

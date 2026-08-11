@@ -9,7 +9,9 @@ struct Pixel {
     std::uint8_t r{0};
     std::uint8_t g{0};
     std::uint8_t b{0};
-    std::uint8_t a{255};
+    // QOI index slots are zero-initialized, including alpha. Callers that need
+    // the format's initial previous pixel explicitly use {0, 0, 0, 255}.
+    std::uint8_t a{0};
 
     friend bool operator==(const Pixel& left, const Pixel& right) noexcept {
         return left.r == right.r && left.g == right.g && left.b == right.b && left.a == right.a;

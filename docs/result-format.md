@@ -1,7 +1,19 @@
 # Result format
 
-`result.json` is the contract between C++ and Electron. It contains backend
-identity, input dimensions, runtime configuration, phase timings, output size
-and compression ratio, plus official decoder, pixel and SHA-256 validation
-flags. The JSON schema is kept in
-`benchmark/schemas/benchmark-result.schema.json`.
+`result.json` is the stable contract between C++, Electron and the benchmark
+pipeline. It contains:
+
+- input dimensions and RGB/RGBA channel mode;
+- backend configuration;
+- input decode (`load_ms`), CUDA initialization/allocation when applicable,
+  Pass 1/summary, propagation, transfer, Pass 2/encode, merge, optional prefix
+  scan, file write, validation and end-to-end timing;
+- output size, compression ratio and encode throughput;
+- RUN, INDEX, DIFF, LUMA, RGB and RGBA chunk counts;
+- inherited cross-block INDEX hits and fallback bytes avoided;
+- official-decoder pixel-buffer and SHA-256 correctness flags.
+
+The benchmark runner adds an `experiment` object to each artifact. It records
+stage, image/category identifiers, warm-up status, measured-run index, source
+digest, exact command, configuration and host metadata. The complete contract
+is in `benchmark/schemas/benchmark-result.schema.json`.

@@ -19,8 +19,8 @@ These are the main files to edit when working on parallel algorithms:
 | Backend | Algorithm file | Responsibility |
 | --- | --- | --- |
 | Serial | `src/backends/serial_encoder.cpp` | Sequential block encoding and correctness baseline |
-| OpenMP | `src/backends/openmp_encoder.cpp` | Static-scheduled CPU block encoding |
-| CUDA | `src/backends/cuda_encoder.cu` | GPU block kernel, transfers, and device output merge |
+| OpenMP | `src/backends/openmp_encoder.cpp` | Static-scheduled CPU block summary and encoding |
+| CUDA | `src/backends/cuda_encoder.cu` | GPU segment kernels, transfers, prefix scan, and device output merge |
 | MPI | `src/backends/mpi_encoder.cpp` | Rank distribution, local encoding, gather, and rank-0 merge |
 
 The shared code in `src/core/` owns image loading, block partitioning, QOI
@@ -72,6 +72,19 @@ All ordinary backends use the same argument contract:
 --blocks <count> --threads <count> --segment-length <pixels> --validate
 ```
 
+Backend parameter semantics are intentionally separate so that two inputs do
+not silently compete to control the same partitioning decision:
+
+| Backend | User-facing controls | Effective image partitions |
+| --- | --- | --- |
+| Serial | None | Fixed at 1 |
+| OpenMP | Threads, image partitions (`--blocks`) | Exact requested partition count, capped by pixel count |
+| CUDA | Pixels per segment (`--segment-length`) | `ceil(pixel_count / segment_length)` |
+| MPI | Processes (`mpiexec -n`), image partitions (`--blocks`) | At least one partition per process, capped by pixel count |
+
+The dashboard reports the effective partition count returned by the native
+backend. CUDA does not accept a separate partition-count tuning control.
+
 Serial baseline:
 
 ```powershell
@@ -98,7 +111,7 @@ CUDA example:
 build-full\Release\pqoi_cuda.exe `
   --input image.bmp --output cuda.qoi `
   --result cuda.json --preview cuda.bmp `
-  --segment-length 1024 --blocks 32 --validate
+  --segment-length 1024 --validate
 ```
 
 MPI must be launched through `mpiexec`:
@@ -110,7 +123,8 @@ mpiexec -n 4 build-full\Release\pqoi_mpi.exe `
 ```
 
 `result.json` is the stable integration boundary between native executables
-and Electron. It contains backend configuration, phase timings, output size,
+and Electron. It contains backend configuration, input-decode timing, CUDA
+initialization/allocation timing when applicable, encode phases, output size,
 compression ratio, throughput, and complete pixel validation status. The
 schema is documented in `benchmark/schemas/benchmark-result.schema.json`.
 
@@ -127,7 +141,9 @@ The dashboard provides:
 - **Convert**: upload one PNG/BMP, choose a backend, preview decoded QOI, and
   save only after validation succeeds.
 - **Compare**: run selected backends sequentially and compare encode runtime,
-  throughput, speedup, output size, phase timings, and validation.
+  throughput, speedup, output size, phase timings, and validation. The phase
+  chart labels image decoding as `Input decode` and shows CUDA initialization
+  and GPU allocation separately from the actual kernel encode.
 - **Performance charts**: Runtime, Throughput, and Phase Breakdown tabs using
   existing native result data without network requests.
 
@@ -152,3 +168,29 @@ parallel-qoi/
 
 Generated build directories, dashboard dependencies, packaged output, and
 benchmark result files are excluded by `.gitignore`.
+
+## Reproducible evaluation
+
+The `benchmark/` pipeline implements the Chapter 5 three-stage evaluation:
+official conformance images, a deterministic stratified tuning subset, and the
+full benchmark suite using selected configurations. It performs one warm-up
+and five measured runs, launches MPI through `mpiexec`, and reports per-image
+median/mean/standard deviation plus category and full-suite summaries.
+
+On Windows, double-click `run-final-benchmark.cmd` to run the complete report
+pipeline: configure/build/test, smoke validation, formal correctness, tuning,
+automatic best-configuration selection, the full suite, aggregation, and Excel
+report generation. Results are stored under `results/final-<git-commit>`. Run
+the launcher again after an interruption to resume successful artifacts.
+
+```powershell
+python benchmark/scripts/run_benchmarks.py `
+  --manifest benchmark/manifests/tuning.json --stage tuning `
+  --native-dir build-full/Release --output-dir results/evaluation
+
+python benchmark/scripts/aggregate_results.py `
+  --input-dir results/evaluation --output results/per-run.csv
+```
+
+See `docs/benchmark-protocol.md` for dataset manifest generation, parameter
+sweeps, timing boundaries, derived metrics and reproducibility requirements.

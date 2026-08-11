@@ -70,7 +70,7 @@ Image decode_qoi(const std::string& qoi_path) {
     Image image;
     image.width = description.width;
     image.height = description.height;
-    image.channels = 4U;
+    image.channels = description.channels;
     image.pixels.resize(static_cast<std::size_t>(image.width) * image.height);
     for (std::size_t index = 0U; index < image.pixels.size(); ++index) {
         image.pixels[index] = Pixel{decoded[index * 4U], decoded[index * 4U + 1U],
@@ -80,30 +80,33 @@ Image decode_qoi(const std::string& qoi_path) {
     return image;
 }
 
-bool validate_qoi(const std::string& qoi_path, const Image& expected) {
+ValidationDetails validate_qoi_detailed(const std::string& qoi_path, const Image& expected) {
+    ValidationDetails result;
     try {
         const Image actual = decode_qoi(qoi_path);
-        return actual.width == expected.width && actual.height == expected.height &&
-               actual.pixels == expected.pixels;
-    } catch (...) {
-        return false;
-    }
-}
-
-bool sha256_match_qoi(const std::string& qoi_path, const Image& expected) {
-    try {
-        const Image actual = decode_qoi(qoi_path);
-        if (actual.width != expected.width || actual.height != expected.height) return false;
+        result.decoder_accepted = true;
+        result.dimensions_match = actual.width == expected.width && actual.height == expected.height;
+        result.channels_match = actual.channels == expected.channels;
+        result.pixel_match = actual.pixels == expected.pixels;
         const auto actual_bytes = pixel_bytes(actual);
         const auto expected_bytes = pixel_bytes(expected);
 #ifdef _WIN32
-        return same_sha256(actual_bytes, expected_bytes);
+        result.sha256_match = same_sha256(actual_bytes, expected_bytes);
 #else
-        return actual_bytes == expected_bytes;
+        result.sha256_match = actual_bytes == expected_bytes;
 #endif
     } catch (...) {
-        return false;
+        return result;
     }
+    return result;
+}
+
+bool validate_qoi(const std::string& qoi_path, const Image& expected) {
+    return validate_qoi_detailed(qoi_path, expected).passed();
+}
+
+bool sha256_match_qoi(const std::string& qoi_path, const Image& expected) {
+    return validate_qoi_detailed(qoi_path, expected).sha256_match;
 }
 
 }  // namespace pqoi

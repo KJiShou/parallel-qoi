@@ -1,0 +1,10 @@
+{
+  "small-icons": ["icon_64"],
+  "large-icons": ["icon_512"],
+  "game-screenshots": ["screenshot_game"],
+  "web-screenshots": ["screenshot_web"],
+  "photographs": ["photo_kodak", "photo_tecnick", "photo_wikipedia"],
+  "photographic-textures": ["textures_photo"],
+  "game-plant-textures": ["textures_pk", "textures_pk01", "textures_pk02", "textures_plants"],
+  "transparent-png": ["pngimg"]
+}

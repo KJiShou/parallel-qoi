@@ -1,4 +1,5 @@
 #include "pqoi/encoder.hpp"
+#include "pqoi/metrics.hpp"
 #include "pqoi/validation.hpp"
 
 #include <cassert>
@@ -40,6 +41,46 @@ int main() {
     }
     assert(pqoi::validate_qoi("pqoi_run_test.qoi", run_image));
     std::remove("pqoi_run_test.qoi");
+
+    pqoi::EncodeResult control_metrics;
+    const auto control_bytes = pqoi::encode_qoi(
+        image, pqoi::EncodeOptions{"one-pass", 7U, 1U, 128U}, &control_metrics);
+    pqoi::populate_chunk_distribution(control_bytes, control_metrics);
+    {
+        std::ofstream output("pqoi_control_test.qoi", std::ios::binary);
+        output.write(reinterpret_cast<const char*>(control_bytes.data()), static_cast<std::streamsize>(control_bytes.size()));
+    }
+    assert(pqoi::validate_qoi("pqoi_control_test.qoi", image));
+    assert(control_metrics.rgba_chunks >= 7U);
+    std::remove("pqoi_control_test.qoi");
+
+    pqoi::Image rgb_image = image;
+    rgb_image.channels = 3U;
+    for (pqoi::Pixel& pixel : rgb_image.pixels) pixel.a = 255U;
+    const auto rgb_bytes = pqoi::encode_qoi(rgb_image, pqoi::EncodeOptions{"serial", 4U, 1U, 64U});
+    {
+        std::ofstream output("pqoi_rgb_test.qoi", std::ios::binary);
+        output.write(reinterpret_cast<const char*>(rgb_bytes.data()), static_cast<std::streamsize>(rgb_bytes.size()));
+    }
+    assert(pqoi::validate_qoi("pqoi_rgb_test.qoi", rgb_image));
+    std::remove("pqoi_rgb_test.qoi");
+
+    pqoi::Image black_image;
+    black_image.width = 3U;
+    black_image.height = 1U;
+    black_image.channels = 4U;
+    black_image.pixels = {
+        pqoi::Pixel{0U, 0U, 0U, 255U},
+        pqoi::Pixel{0U, 0U, 0U, 0U},
+        pqoi::Pixel{0U, 0U, 0U, 255U},
+    };
+    const auto black_bytes = pqoi::encode_qoi(black_image, pqoi::EncodeOptions{"serial", 1U, 1U, 64U});
+    {
+        std::ofstream output("pqoi_black_alpha_test.qoi", std::ios::binary);
+        output.write(reinterpret_cast<const char*>(black_bytes.data()), static_cast<std::streamsize>(black_bytes.size()));
+    }
+    assert(pqoi::validate_qoi("pqoi_black_alpha_test.qoi", black_image));
+    std::remove("pqoi_black_alpha_test.qoi");
 
     return 0;
 }

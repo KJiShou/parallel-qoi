@@ -2,6 +2,7 @@
 
 #include "qoi/qoi.h"
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <cstring>
@@ -54,7 +55,7 @@ pqoi::Image load_bmp(const std::vector<std::uint8_t>& bytes) {
     pqoi::Image image;
     image.width = static_cast<std::uint32_t>(width);
     image.height = height;
-    image.channels = 4U;
+    image.channels = bit_count == 24U ? 3U : 4U;
     image.pixels.resize(static_cast<std::size_t>(width) * height);
     for (std::uint32_t y = 0U; y < height; ++y) {
         const std::uint32_t source_y = top_down ? y : height - 1U - y;
@@ -67,6 +68,18 @@ pqoi::Image load_bmp(const std::vector<std::uint8_t>& bytes) {
         }
     }
     return image;
+}
+
+std::uint8_t png_channel_count(const std::vector<std::uint8_t>& bytes) {
+    constexpr std::array<std::uint8_t, 8> signature{137U, 80U, 78U, 71U, 13U, 10U, 26U, 10U};
+    if (bytes.size() < 26U || !std::equal(signature.begin(), signature.end(), bytes.begin())) return 4U;
+    const std::uint8_t color_type = bytes[25U];
+    if (color_type == 4U || color_type == 6U) return 4U;
+    if (color_type == 3U) {
+        const std::array<std::uint8_t, 4> transparency{'t', 'R', 'N', 'S'};
+        return std::search(bytes.begin(), bytes.end(), transparency.begin(), transparency.end()) == bytes.end() ? 3U : 4U;
+    }
+    return 3U;
 }
 
 #ifdef _WIN32
@@ -144,7 +157,9 @@ Image load_image(const std::string& path) {
         std::free(decoded); return image;
     }
 #ifdef _WIN32
-    return load_with_wic(path);
+    Image image = load_with_wic(path);
+    image.channels = png_channel_count(bytes);
+    return image;
 #else
     int width = 0;
     int height = 0;
@@ -156,7 +171,7 @@ Image load_image(const std::string& path) {
     Image image;
     image.width = static_cast<std::uint32_t>(width);
     image.height = static_cast<std::uint32_t>(height);
-    image.channels = 4U;
+    image.channels = source_channels == 2 || source_channels == 4 ? 4U : 3U;
     image.pixels.resize(static_cast<std::size_t>(width) * height);
     for (std::size_t index = 0U; index < image.pixels.size(); ++index) {
         image.pixels[index] = Pixel{rgba[index * 4U], rgba[index * 4U + 1U],

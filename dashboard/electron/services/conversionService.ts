@@ -4,27 +4,47 @@ import { ProcessRunner } from './processRunner'
 import { TempFileService } from './tempFileService'
 import type { BackendId, ConversionRequest, ConversionResponse, NativeResult, SelectedImage } from './types'
 
+function finiteNonNegative(value: unknown): number {
+  const numeric = Number(value)
+  return Number.isFinite(numeric) && numeric >= 0 ? numeric : 0
+}
+
 function normalizeResult(raw: Partial<NativeResult>, request: ConversionRequest, image: SelectedImage, job: { outputPath: string; previewPath: string }): NativeResult {
   const rawTiming = raw.timing
   const rawValidation = raw.validation
+  const threads = request.backend === 'serial' ? 1 : (request.threads ?? 4)
+  const segmentLength = Math.max(1, request.segmentLength ?? 1024)
+  const requestedBlocks = Math.max(1, request.blocks ?? 8)
+  const blocks = request.backend === 'serial'
+    ? 1
+    : request.backend === 'cuda'
+      ? Math.ceil((image.width * image.height) / segmentLength)
+      : request.backend === 'mpi' ? Math.max(requestedBlocks, threads) : requestedBlocks
   return {
     status: raw.status === 'success' || raw.status === 'validation_failed' ? raw.status : 'error',
     backend: raw.backend ?? request.backend,
     error: raw.error,
     input: raw.input ?? { path: image.inputPath, width: image.width, height: image.height, channels: image.channels },
-    configuration: raw.configuration ?? { blocks: request.blocks ?? 8, threads: request.threads ?? 4, segment_length: request.segmentLength ?? 1024 },
+    configuration: raw.configuration ?? { blocks, threads, segment_length: segmentLength },
     timing: {
-      load_ms: rawTiming?.load_ms ?? 0,
-      summary_ms: rawTiming?.summary_ms ?? 0,
-      propagation_ms: rawTiming?.propagation_ms ?? 0,
-      transfer_in_ms: rawTiming?.transfer_in_ms ?? 0,
-      encode_ms: rawTiming?.encode_ms ?? 0,
-      transfer_out_ms: rawTiming?.transfer_out_ms ?? 0,
-      merge_ms: rawTiming?.merge_ms ?? 0,
-      validation_ms: rawTiming?.validation_ms ?? 0,
-      total_ms: rawTiming?.total_ms ?? 0,
+      load_ms: finiteNonNegative(rawTiming?.load_ms),
+      cuda_init_ms: finiteNonNegative(rawTiming?.cuda_init_ms),
+      allocation_ms: finiteNonNegative(rawTiming?.allocation_ms),
+      summary_ms: finiteNonNegative(rawTiming?.summary_ms),
+      propagation_ms: finiteNonNegative(rawTiming?.propagation_ms),
+      transfer_in_ms: finiteNonNegative(rawTiming?.transfer_in_ms),
+      encode_ms: finiteNonNegative(rawTiming?.encode_ms),
+      transfer_out_ms: finiteNonNegative(rawTiming?.transfer_out_ms),
+      merge_ms: finiteNonNegative(rawTiming?.merge_ms),
+      prefix_scan_ms: finiteNonNegative(rawTiming?.prefix_scan_ms),
+      write_ms: finiteNonNegative(rawTiming?.write_ms),
+      metrics_analysis_ms: finiteNonNegative(rawTiming?.metrics_analysis_ms),
+      validation_ms: finiteNonNegative(rawTiming?.validation_ms),
+      total_ms: finiteNonNegative(rawTiming?.total_ms),
     },
     output: raw.output ?? { path: job.outputPath, bytes: 0, compression_ratio: 0, throughput_mpixels: 0 },
+    chunks: raw.chunks ?? { run: 0, index: 0, diff: 0, luma: 0, rgb: 0, rgba: 0 },
+    cross_block: raw.cross_block ?? { inherited_index_hits: 0, fallback_bytes_avoided: 0 },
     preview_path: raw.preview_path ?? job.previewPath,
     validation: {
       passed: rawValidation?.passed ?? false,
@@ -52,18 +72,23 @@ export class ConversionService {
     const executable = this.registry.executablePath(request.backend)
     if (!executable) throw new Error(`${request.backend} backend is not available on this machine`)
     const job = await this.temp.createJob(request.jobId)
-    const blocks = request.backend === 'serial' ? 1 : (request.blocks ?? 8)
     const threads = request.backend === 'serial' ? 1 : (request.threads ?? 4)
+    const requestedBlocks = request.blocks ?? 8
+    const blocks = request.backend === 'serial'
+      ? 1
+      : request.backend === 'mpi'
+        ? Math.max(requestedBlocks, threads)
+        : request.backend === 'cuda' ? 1 : requestedBlocks
     const args = [
       '--input', image.inputPath,
       '--output', job.outputPath,
       '--result', job.resultPath,
       '--preview', job.previewPath,
-      '--blocks', String(blocks),
       '--threads', String(threads),
       '--segment-length', String(request.segmentLength ?? 1024),
       '--validate',
     ]
+    if (request.backend !== 'cuda') args.push('--blocks', String(blocks))
     let command = executable
     let commandArgs = args
     if (request.backend === 'mpi') {
