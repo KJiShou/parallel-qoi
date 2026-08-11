@@ -81,13 +81,13 @@ def display_backend(backend: str) -> str:
 
 
 def parse_config(config: str, backend: str) -> tuple[float | None, int | None]:
-    """Return the primary tuning parameter and block count from a config id."""
+    """Return the primary tuning parameter and optional partition count."""
     if backend == "openmp":
         match = re.search(r"thr-(\d+)_blo-(\d+)", config)
         return (float(match.group(1)), int(match.group(2))) if match else (None, None)
     if backend == "cuda":
-        match = re.search(r"seg-(\d+)_blo-(\d+)", config)
-        return (float(match.group(1)), int(match.group(2))) if match else (None, None)
+        match = re.search(r"seg-(\d+)", config)
+        return (float(match.group(1)), None) if match else (None, None)
     if backend == "mpi":
         match = re.search(r"pro-(\d+)_blo-(\d+)", config)
         return (float(match.group(1)), int(match.group(2))) if match else (None, None)

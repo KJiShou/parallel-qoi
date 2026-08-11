@@ -20,7 +20,7 @@ These are the main files to edit when working on parallel algorithms:
 | --- | --- | --- |
 | Serial | `src/backends/serial_encoder.cpp` | Sequential block encoding and correctness baseline |
 | OpenMP | `src/backends/openmp_encoder.cpp` | Static-scheduled CPU block summary and encoding |
-| CUDA | `src/backends/cuda_encoder.cu` | GPU block kernel, transfers, and device output merge |
+| CUDA | `src/backends/cuda_encoder.cu` | GPU segment kernels, transfers, prefix scan, and device output merge |
 | MPI | `src/backends/mpi_encoder.cpp` | Rank distribution, local encoding, gather, and rank-0 merge |
 
 The shared code in `src/core/` owns image loading, block partitioning, QOI
@@ -72,6 +72,19 @@ All ordinary backends use the same argument contract:
 --blocks <count> --threads <count> --segment-length <pixels> --validate
 ```
 
+Backend parameter semantics are intentionally separate so that two inputs do
+not silently compete to control the same partitioning decision:
+
+| Backend | User-facing controls | Effective image partitions |
+| --- | --- | --- |
+| Serial | None | Fixed at 1 |
+| OpenMP | Threads, image partitions (`--blocks`) | Exact requested partition count, capped by pixel count |
+| CUDA | Pixels per segment (`--segment-length`) | `ceil(pixel_count / segment_length)` |
+| MPI | Processes (`mpiexec -n`), image partitions (`--blocks`) | At least one partition per process, capped by pixel count |
+
+The dashboard reports the effective partition count returned by the native
+backend. CUDA does not accept a separate partition-count tuning control.
+
 Serial baseline:
 
 ```powershell
@@ -98,7 +111,7 @@ CUDA example:
 build-full\Release\pqoi_cuda.exe `
   --input image.bmp --output cuda.qoi `
   --result cuda.json --preview cuda.bmp `
-  --segment-length 1024 --blocks 32 --validate
+  --segment-length 1024 --validate
 ```
 
 MPI must be launched through `mpiexec`:
@@ -163,6 +176,12 @@ official conformance images, a deterministic stratified tuning subset, and the
 full benchmark suite using selected configurations. It performs one warm-up
 and five measured runs, launches MPI through `mpiexec`, and reports per-image
 median/mean/standard deviation plus category and full-suite summaries.
+
+On Windows, double-click `run-final-benchmark.cmd` to run the complete report
+pipeline: configure/build/test, smoke validation, formal correctness, tuning,
+automatic best-configuration selection, the full suite, aggregation, and Excel
+report generation. Results are stored under `results/final-<git-commit>`. Run
+the launcher again after an interruption to resume successful artifacts.
 
 ```powershell
 python benchmark/scripts/run_benchmarks.py `

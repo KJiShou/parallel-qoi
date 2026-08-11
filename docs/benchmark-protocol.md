@@ -6,9 +6,9 @@ The automated protocol follows the three-stage evaluation plan in Chapter 5.
 
 1. **Correctness:** run Serial, OpenMP, CUDA and MPI over the official QOI
    conformance archive plus RGB/RGBA, transparency, small-image and block-boundary cases.
-2. **Tuning:** use a published, systematic stratified subset (normally 20 images
-   from each of eight categories) to sweep threads, processes, segment length and
-   block count.
+2. **Tuning:** use the published deterministic 154-image stratified manifest to
+   sweep OpenMP threads/image partitions,
+   CUDA pixels per segment, and MPI processes/image partitions.
 3. **Full:** run Serial, one-pass control and the selected best OpenMP, CUDA and
    MPI configurations over every image in the downloaded archive (2,848 images
    in the current official suite; the fetcher records the exact archive hash).
@@ -35,7 +35,9 @@ the configured worker count with static scheduling for both Pass 1 and Pass 2;
 its ordered state propagation remains sequential. For CUDA,
 `summary_ms` includes the GPU summary kernel and the small summary readback used
 for host state propagation; `prefix_scan_ms` measures the device exclusive scan,
-and `merge_ms` includes device compaction plus final host QOI assembly. For MPI,
+and `merge_ms` includes device compaction plus final host QOI assembly. CUDA uses
+pixels per segment as its single partitioning control and reports the derived
+image partition count. For MPI,
 `summary_ms` includes the maximum rank-local summary time plus the summary
 gather to rank 0; `transfer_in_ms` includes pixel and propagated-state scatter.
 CUDA host/device transfers and the final MPI encoded-payload gather are reported

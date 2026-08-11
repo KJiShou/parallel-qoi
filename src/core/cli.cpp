@@ -27,9 +27,9 @@ void print_help(const char* executable) {
               << "  --result <path>          JSON result path\n"
               << "  --preview <path>         decoded BMP preview path\n"
               << "  --no-preview             validate without writing a decoded preview\n"
-              << "  --blocks <count>         number of contiguous blocks\n"
+              << "  --blocks <count>         OpenMP/MPI image partition count\n"
               << "  --threads <count>        OpenMP worker count\n"
-              << "  --segment-length <n>     CUDA segment size\n"
+              << "  --segment-length <n>     CUDA pixels per image partition\n"
               << "  --validate               decode and compare output pixels\n";
 }
 
@@ -59,7 +59,9 @@ CliArgs parse_args(const int argc, char** argv, const char* backend) {
     if (args.input.empty() || args.output.empty()) throw std::runtime_error("--input and --output are required");
     if (args.result.empty()) args.result = args.output + ".json";
     if (args.preview.empty() && !args.preview_disabled) args.preview = args.output + ".bmp";
-    if (args.options.blocks == 0U) args.options.blocks = std::max<std::size_t>(1U, args.options.threads * 2U);
+    if (args.options.blocks == 0U && args.options.backend != "cuda") {
+        args.options.blocks = std::max<std::size_t>(1U, args.options.threads * 2U);
+    }
     return args;
 }
 

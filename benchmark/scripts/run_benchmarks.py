@@ -71,7 +71,11 @@ def build_configurations(config: dict[str, Any], stage: str) -> list[dict[str, A
     if stage in {"correctness", "full"}:
         selected = config.get("best_configurations", {})
         backends = config.get("stages", {}).get(stage, {}).get("backends", ["serial", "openmp", "cuda", "mpi"])
-        return [{"backend": backend, **defaults, **selected.get(backend, {})} for backend in backends]
+        configurations = [{"backend": backend, **defaults, **selected.get(backend, {})} for backend in backends]
+        for configuration in configurations:
+            if configuration["backend"] == "cuda":
+                configuration.pop("blocks", None)
+        return configurations
 
     grid = config.get("tuning_grid", {})
     multipliers = grid.get("block_multipliers", [1, 2, 4])
@@ -83,9 +87,9 @@ def build_configurations(config: dict[str, Any], stage: str) -> list[dict[str, A
         for blocks in block_values(threads, multipliers):
             configurations.append({"backend": "openmp", **defaults, "threads": threads, "blocks": blocks})
     for segment_length in grid.get("cuda_segment_lengths", [256, 512, 1024, 2048, 4096]):
-        for multiplier in multipliers:
-            configurations.append({"backend": "cuda", **defaults, "segment_length": segment_length,
-                                   "blocks": multiplier})
+        cuda_configuration = {"backend": "cuda", **defaults, "segment_length": segment_length}
+        cuda_configuration.pop("blocks", None)
+        configurations.append(cuda_configuration)
     for processes in grid.get("mpi_processes", [1, 2, 4, 8]):
         for blocks in block_values(processes, multipliers):
             configurations.append({"backend": "mpi", **defaults, "processes": processes, "blocks": blocks})
@@ -99,7 +103,7 @@ def configuration_id(configuration: dict[str, Any]) -> str:
         "serial": ("blocks",),
         "control": ("blocks",),
         "openmp": ("threads", "blocks"),
-        "cuda": ("segment_length", "blocks"),
+        "cuda": ("segment_length",),
         "mpi": ("processes", "blocks"),
     }.get(backend, ("threads", "processes", "blocks", "segment_length"))
     for key in relevant:
@@ -155,11 +159,12 @@ def build_command(executable: Path, image: Path, output: Path, result: Path, pre
     native_command = [
         str(executable), "--input", str(image), "--output", str(output),
         "--result", str(result),
-        "--blocks", str(configuration.get("blocks", 1)),
         "--threads", str(configuration.get("threads", 1)),
         "--segment-length", str(configuration.get("segment_length", 1024)),
         "--validate",
     ]
+    if backend != "cuda":
+        native_command.extend(["--blocks", str(configuration.get("blocks", 1))])
     if generate_preview:
         native_command.extend(["--preview", str(preview)])
     else:

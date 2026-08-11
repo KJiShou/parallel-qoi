@@ -33,7 +33,7 @@ MpiCliArgs parse_args(const int argc, char** argv, const int world_size, const i
     for (int index = 1; index < argc; ++index) {
         const std::string flag = argv[index];
         if (flag == "--help" || flag == "-h") {
-            if (rank == 0) std::cout << "Usage: pqoi_mpi --input <path> --output <path> [--result <path>] [--preview <path> | --no-preview] [--threads <count>] [--validate]\n";
+            if (rank == 0) std::cout << "Usage: pqoi_mpi --input <path> --output <path> [--result <path>] [--preview <path> | --no-preview] [--blocks <image-partitions>] [--validate]\n";
             throw HelpRequested{};
         }
         if (flag == "--input") args.input = next_value(index, argc, argv, "--input");

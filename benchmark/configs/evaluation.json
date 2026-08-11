@@ -12,7 +12,7 @@
       "backends": ["serial", "openmp", "cuda", "mpi"]
     },
     "tuning": {
-      "target_images": 160,
+      "target_images": 154,
       "images_per_category": 20
     },
     "full": {
@@ -29,7 +29,7 @@
     "serial": {"threads": 1, "blocks": 1},
     "control": {"threads": 1, "blocks": 8},
     "openmp": {"threads": 8, "blocks": 32},
-    "cuda": {"segment_length": 256, "blocks": 2},
+    "cuda": {"segment_length": 256},
     "mpi": {"processes": 8, "blocks": 16}
   }
 }

@@ -12,12 +12,20 @@ function finiteNonNegative(value: unknown): number {
 function normalizeResult(raw: Partial<NativeResult>, request: ConversionRequest, image: SelectedImage, job: { outputPath: string; previewPath: string }): NativeResult {
   const rawTiming = raw.timing
   const rawValidation = raw.validation
+  const threads = request.backend === 'serial' ? 1 : (request.threads ?? 4)
+  const segmentLength = Math.max(1, request.segmentLength ?? 1024)
+  const requestedBlocks = Math.max(1, request.blocks ?? 8)
+  const blocks = request.backend === 'serial'
+    ? 1
+    : request.backend === 'cuda'
+      ? Math.ceil((image.width * image.height) / segmentLength)
+      : request.backend === 'mpi' ? Math.max(requestedBlocks, threads) : requestedBlocks
   return {
     status: raw.status === 'success' || raw.status === 'validation_failed' ? raw.status : 'error',
     backend: raw.backend ?? request.backend,
     error: raw.error,
     input: raw.input ?? { path: image.inputPath, width: image.width, height: image.height, channels: image.channels },
-    configuration: raw.configuration ?? { blocks: request.blocks ?? 8, threads: request.threads ?? 4, segment_length: request.segmentLength ?? 1024 },
+    configuration: raw.configuration ?? { blocks, threads, segment_length: segmentLength },
     timing: {
       load_ms: finiteNonNegative(rawTiming?.load_ms),
       cuda_init_ms: finiteNonNegative(rawTiming?.cuda_init_ms),
@@ -64,18 +72,23 @@ export class ConversionService {
     const executable = this.registry.executablePath(request.backend)
     if (!executable) throw new Error(`${request.backend} backend is not available on this machine`)
     const job = await this.temp.createJob(request.jobId)
-    const blocks = request.backend === 'serial' ? 1 : (request.blocks ?? 8)
     const threads = request.backend === 'serial' ? 1 : (request.threads ?? 4)
+    const requestedBlocks = request.blocks ?? 8
+    const blocks = request.backend === 'serial'
+      ? 1
+      : request.backend === 'mpi'
+        ? Math.max(requestedBlocks, threads)
+        : request.backend === 'cuda' ? 1 : requestedBlocks
     const args = [
       '--input', image.inputPath,
       '--output', job.outputPath,
       '--result', job.resultPath,
       '--preview', job.previewPath,
-      '--blocks', String(blocks),
       '--threads', String(threads),
       '--segment-length', String(request.segmentLength ?? 1024),
       '--validate',
     ]
+    if (request.backend !== 'cuda') args.push('--blocks', String(blocks))
     let command = executable
     let commandArgs = args
     if (request.backend === 'mpi') {

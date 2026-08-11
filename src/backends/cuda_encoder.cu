@@ -202,12 +202,13 @@ std::vector<std::uint8_t> encode_cuda_qoi(const Image& image,
     check_cuda(cudaFree(nullptr), "initialize CUDA context");
     if (metrics) metrics->cuda_init_ms = elapsed_ms(cuda_init_start, clock_type::now());
 
-    const std::size_t segment_blocks = options.segment_length == 0U
-        ? 1U
-        : (image.pixels.size() + options.segment_length - 1U) / options.segment_length;
-    const std::size_t requested_blocks = std::max<std::size_t>(
-        options.blocks == 0U ? std::max<std::size_t>(1U, options.threads * 2U) : options.blocks,
-        segment_blocks);
+    if (image.pixels.empty()) throw std::runtime_error("CUDA QOI encoding requires at least one pixel");
+    if (options.segment_length == 0U) throw std::runtime_error("CUDA segment length must be greater than zero");
+    // CUDA uses pixels-per-segment as its single partitioning control. Keeping
+    // --blocks out of this calculation avoids two parameters silently competing
+    // to determine the same image partition count.
+    const std::size_t requested_blocks =
+        1U + (image.pixels.size() - 1U) / options.segment_length;
     const std::vector<Block> blocks = partition_blocks(image.pixels.size(), requested_blocks);
     if (metrics) metrics->blocks = blocks.size();
     if (blocks.empty()) throw std::runtime_error("CUDA QOI encoding requires at least one pixel block");
@@ -229,9 +230,8 @@ std::vector<std::uint8_t> encode_cuda_qoi(const Image& image,
                                maximum_bytes_per_pixel) {
         throw std::runtime_error("CUDA QOI block capacity overflows size_t");
     }
-    const std::size_t stride = std::max<std::size_t>(
-        maximum_bytes_per_pixel * max_block_pixels + block_capacity_margin,
-        options.segment_length);
+    const std::size_t stride =
+        maximum_bytes_per_pixel * max_block_pixels + block_capacity_margin;
     if (blocks.size() > (std::numeric_limits<std::size_t>::max)() / stride) {
         throw std::runtime_error("CUDA QOI scratch allocation overflows size_t");
     }

@@ -125,16 +125,19 @@ function getConfiguration(response: ConversionResponse) {
   if (backend === 'openmp') {
     return [
       { label: 'Threads', value: configuration.threads },
-      { label: 'Blocks', value: configuration.blocks },
+      { label: 'Image partitions', value: configuration.blocks },
     ]
   }
   if (backend === 'cuda') {
     return [
-      { label: 'Segment length', value: configuration.segment_length },
-      { label: 'Blocks', value: configuration.blocks },
+      { label: 'Pixels per segment', value: configuration.segment_length },
+      { label: 'Actual image partitions', value: configuration.blocks },
     ]
   }
-  return [{ label: 'Processes', value: configuration.threads }]
+  return [
+    { label: 'Processes', value: configuration.threads },
+    { label: 'Image partitions', value: configuration.blocks },
+  ]
 }
 
 function ExpandedDetails({ response, serialEncode, serialBytes }: { response: ConversionResponse; serialEncode?: number; serialBytes?: number }) {
