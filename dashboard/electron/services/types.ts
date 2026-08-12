@@ -35,16 +35,23 @@ export type NativeResult = {
   configuration: { blocks: number; threads: number; segment_length: number }
   timing: {
     load_ms: number
+    cuda_init_ms: number
+    allocation_ms: number
     summary_ms: number
     propagation_ms: number
     transfer_in_ms: number
     encode_ms: number
     transfer_out_ms: number
     merge_ms: number
+    prefix_scan_ms: number
+    write_ms: number
+    metrics_analysis_ms: number
     validation_ms: number
     total_ms: number
   }
   output: { path: string; bytes: number; compression_ratio: number; throughput_mpixels: number }
+  chunks: { run: number; index: number; diff: number; luma: number; rgb: number; rgba: number }
+  cross_block: { inherited_index_hits: number; fallback_bytes_avoided: number }
   preview_path: string
   validation: { passed: boolean; pixel_match: boolean; sha256_match: boolean }
 }

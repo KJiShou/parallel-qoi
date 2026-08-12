@@ -1,0 +1,12 @@
+{
+  "name": "qoi-evaluation-dataset",
+  "images": [
+    {
+      "id": "example-rgba-icon",
+      "path": "../../data/example.png",
+      "category": "small-icons",
+      "channel_mode": "RGBA",
+      "stage": "correctness"
+    }
+  ]
+}
