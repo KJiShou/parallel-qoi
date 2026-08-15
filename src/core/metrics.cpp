@@ -82,7 +82,10 @@ std::string result_json(const EncodeResult& result) {
          << result.width << ", \"height\": " << result.height << ", \"channels\": "
          << static_cast<int>(result.channels) << "},\n"
          << "  \"configuration\": {\"blocks\": " << result.blocks << ", \"threads\": "
-         << result.threads << ", \"segment_length\": " << result.segment_length << "},\n"
+         << result.threads << ", \"segment_length\": " << result.segment_length
+         << ", \"cuda_threads_per_block\": " << result.cuda_threads_per_block
+         << ", \"cuda_device_architecture\": \"" << escape_json(result.cuda_device_architecture)
+         << "\", \"persistent_context_reused\": " << (result.persistent_context_reused ? "true" : "false") << "},\n"
          << "  \"timing\": {\"load_ms\": " << result.load_ms
          << ", \"cuda_init_ms\": " << result.cuda_init_ms
          << ", \"allocation_ms\": " << result.allocation_ms
@@ -93,6 +96,8 @@ std::string result_json(const EncodeResult& result) {
          << ", \"transfer_out_ms\": " << result.transfer_out_ms
          << ", \"merge_ms\": " << result.merge_ms
          << ", \"prefix_scan_ms\": " << result.prefix_scan_ms
+         << ", \"compaction_ms\": " << result.compaction_ms
+         << ", \"core_pipeline_ms\": " << result.core_pipeline_ms
          << ", \"write_ms\": " << result.write_ms
          << ", \"metrics_analysis_ms\": " << result.metrics_analysis_ms
          << ", \"validation_ms\": " << result.validation_ms

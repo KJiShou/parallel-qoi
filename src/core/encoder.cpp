@@ -41,6 +41,7 @@ EncodeResult run_conversion(const std::string& input_path,
     result.blocks = options.blocks;
     result.threads = options.threads;
     result.segment_length = options.segment_length;
+    result.cuda_threads_per_block = options.cuda_threads_per_block;
     const auto total_start = clock_type::now();
     try {
         const auto load_start = clock_type::now();
