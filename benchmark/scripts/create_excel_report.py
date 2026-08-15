@@ -44,6 +44,7 @@ PHASE_COLUMNS = (
     ("transfer_in_ms_median", "Transfer in"),
     ("encode_ms_median", "Pass 2 / encode"),
     ("transfer_out_ms_median", "Transfer out"),
+    ("compaction_ms_median", "Compaction"),
     ("merge_ms_median", "Merge"),
     ("validation_ms_median", "Validation"),
 )

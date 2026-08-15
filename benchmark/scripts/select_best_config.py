@@ -14,7 +14,7 @@ from typing import Any
 TUNED_BACKENDS = ("openmp", "cuda", "mpi")
 CONFIG_PATTERNS = {
     "openmp": (re.compile(r"^openmp_thr-(\d+)_blo-(\d+)$"), ("threads", "blocks")),
-    "cuda": (re.compile(r"^cuda_seg-(\d+)$"), ("segment_length",)),
+    "cuda": (re.compile(r"^cuda_seg-(\d+)_cud-(\d+)$"), ("segment_length", "cuda_threads_per_block")),
     "mpi": (re.compile(r"^mpi_pro-(\d+)_blo-(\d+)$"), ("processes", "blocks")),
 }
 
