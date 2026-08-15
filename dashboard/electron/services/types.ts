@@ -25,6 +25,7 @@ export type ConversionRequest = {
   blocks?: number
   threads?: number
   segmentLength?: number
+  cudaThreadsPerBlock?: number
 }
 
 export type NativeResult = {
@@ -32,7 +33,14 @@ export type NativeResult = {
   backend: BackendId
   error?: string
   input: { path: string; width: number; height: number; channels: number }
-  configuration: { blocks: number; threads: number; segment_length: number }
+  configuration: {
+    blocks: number
+    threads: number
+    segment_length: number
+    cuda_threads_per_block: number
+    cuda_device_architecture: string
+    persistent_context_reused: boolean
+  }
   timing: {
     load_ms: number
     cuda_init_ms: number
@@ -44,6 +52,8 @@ export type NativeResult = {
     transfer_out_ms: number
     merge_ms: number
     prefix_scan_ms: number
+    compaction_ms: number
+    core_pipeline_ms: number
     write_ms: number
     metrics_analysis_ms: number
     validation_ms: number

@@ -15,6 +15,7 @@ function normalizeResult(raw: Partial<NativeResult>, request: ConversionRequest,
   const threads = request.backend === 'serial' ? 1 : (request.threads ?? 4)
   const segmentLength = Math.max(1, request.segmentLength ?? 1024)
   const requestedBlocks = Math.max(1, request.blocks ?? 8)
+  const cudaThreadsPerBlock = Math.max(32, request.cudaThreadsPerBlock ?? 128)
   const blocks = request.backend === 'serial'
     ? 1
     : request.backend === 'cuda'
@@ -25,7 +26,12 @@ function normalizeResult(raw: Partial<NativeResult>, request: ConversionRequest,
     backend: raw.backend ?? request.backend,
     error: raw.error,
     input: raw.input ?? { path: image.inputPath, width: image.width, height: image.height, channels: image.channels },
-    configuration: raw.configuration ?? { blocks, threads, segment_length: segmentLength },
+    configuration: raw.configuration ?? {
+      blocks, threads, segment_length: segmentLength,
+      cuda_threads_per_block: cudaThreadsPerBlock,
+      cuda_device_architecture: '',
+      persistent_context_reused: false,
+    },
     timing: {
       load_ms: finiteNonNegative(rawTiming?.load_ms),
       cuda_init_ms: finiteNonNegative(rawTiming?.cuda_init_ms),
@@ -37,6 +43,8 @@ function normalizeResult(raw: Partial<NativeResult>, request: ConversionRequest,
       transfer_out_ms: finiteNonNegative(rawTiming?.transfer_out_ms),
       merge_ms: finiteNonNegative(rawTiming?.merge_ms),
       prefix_scan_ms: finiteNonNegative(rawTiming?.prefix_scan_ms),
+      compaction_ms: finiteNonNegative(rawTiming?.compaction_ms),
+      core_pipeline_ms: finiteNonNegative(rawTiming?.core_pipeline_ms),
       write_ms: finiteNonNegative(rawTiming?.write_ms),
       metrics_analysis_ms: finiteNonNegative(rawTiming?.metrics_analysis_ms),
       validation_ms: finiteNonNegative(rawTiming?.validation_ms),
@@ -88,6 +96,7 @@ export class ConversionService {
       '--segment-length', String(request.segmentLength ?? 1024),
       '--validate',
     ]
+    if (request.backend === 'cuda') args.push('--cuda-threads-per-block', String(request.cudaThreadsPerBlock ?? 128))
     if (request.backend !== 'cuda') args.push('--blocks', String(blocks))
     let command = executable
     let commandArgs = args
@@ -97,7 +106,19 @@ export class ConversionService {
       command = launcher
       commandArgs = ['-n', String(request.threads ?? 4), executable, ...args]
     }
-    const result = normalizeResult(await this.runner.run(job.jobId, command, commandArgs, job.resultPath) as Partial<NativeResult>, request, image, job)
+    const rawResult = request.backend === 'cuda'
+      ? await this.runner.runCuda(job.jobId, executable, {
+          request_id: job.jobId,
+          input: image.inputPath,
+          output: job.outputPath,
+          result: job.resultPath,
+          preview: job.previewPath,
+          segment_length: request.segmentLength ?? 1024,
+          cuda_threads_per_block: request.cudaThreadsPerBlock ?? 128,
+          validate: true,
+        }, job.resultPath)
+      : await this.runner.run(job.jobId, command, commandArgs, job.resultPath)
+    const result = normalizeResult(rawResult as Partial<NativeResult>, request, image, job)
     const previewDataUrl = result.validation?.passed && existsSync(job.previewPath)
       ? await this.temp.previewDataUrl(job.jobId)
       : undefined
