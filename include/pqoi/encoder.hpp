@@ -16,6 +16,7 @@ struct EncodeOptions {
     std::size_t blocks{0};
     std::size_t threads{1};
     std::size_t segment_length{1024};
+    std::size_t cuda_threads_per_block{128};
 };
 
 std::vector<std::uint8_t> encode_qoi(const Image& image, const EncodeOptions& options);
