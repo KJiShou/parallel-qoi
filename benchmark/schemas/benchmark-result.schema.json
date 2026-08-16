@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Parallel QOI native result",
+  "type": "object",
+  "required": ["status", "backend", "input", "configuration", "timing", "output", "chunks", "cross_block", "validation"],
+  "properties": {
+    "status": {"enum": ["success", "validation_failed", "error"]},
+    "backend": {"enum": ["serial", "one-pass", "openmp", "cuda", "mpi"]},
+    "error": {"type": "string"},
+    "input": {
+      "type": "object",
+      "required": ["path", "width", "height", "channels"],
+      "properties": {
+        "path": {"type": "string"},
+        "width": {"type": "integer", "minimum": 0},
+        "height": {"type": "integer", "minimum": 0},
+        "channels": {"type": "integer", "enum": [0, 3, 4]}
+      }
+    },
+    "configuration": {"type": "object"},
+    "timing": {
+      "type": "object",
+      "required": ["load_ms", "cuda_init_ms", "allocation_ms", "summary_ms", "propagation_ms", "transfer_in_ms", "encode_ms", "transfer_out_ms", "merge_ms", "prefix_scan_ms", "compaction_ms", "core_pipeline_ms", "write_ms", "metrics_analysis_ms", "validation_ms", "total_ms"],
+      "additionalProperties": {"type": "number", "minimum": 0}
+    },
+    "output": {
+      "type": "object",
+      "required": ["path", "bytes", "compression_ratio", "throughput_mpixels", "core_pipeline_throughput_mpixels"]
+    },
+    "chunks": {
+      "type": "object",
+      "required": ["run", "index", "diff", "luma", "rgb", "rgba"],
+      "additionalProperties": {"type": "integer", "minimum": 0}
+    },
+    "cross_block": {
+      "type": "object",
+      "required": ["inherited_index_hits", "fallback_bytes_avoided"],
+      "additionalProperties": {"type": "integer", "minimum": 0}
+    },
+    "validation": {
+      "type": "object",
+      "required": ["passed", "pixel_match", "sha256_match"],
+      "additionalProperties": {"type": "boolean"}
+    },
+    "experiment": {"type": "object"}
+  }
+}

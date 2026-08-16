@@ -1,0 +1,1085 @@
+{
+  "name": "tuning-dataset",
+  "sampling_rule": "sorted midpoint systematic sampling",
+  "root": "D:\\JiShou\\JS_Obsidian\\parallel-qoi\\data\\benchmark-suite\\images",
+  "images": [
+    {
+      "id": "actions-document-open-6a2f17a513",
+      "path": "..\\..\\data\\benchmark-suite\\images\\icon_64\\actions-document-open.png",
+      "category": "small-icons",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "actions-edit-find-replace-9ac2b22bce",
+      "path": "..\\..\\data\\benchmark-suite\\images\\icon_64\\actions-edit-find-replace.png",
+      "category": "small-icons",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "actions-format-justify-left-555d8cd3a0",
+      "path": "..\\..\\data\\benchmark-suite\\images\\icon_64\\actions-format-justify-left.png",
+      "category": "small-icons",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "actions-go-last-05b0cb8b5d",
+      "path": "..\\..\\data\\benchmark-suite\\images\\icon_64\\actions-go-last.png",
+      "category": "small-icons",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "actions-mail-reply-all-a38ca925a4",
+      "path": "..\\..\\data\\benchmark-suite\\images\\icon_64\\actions-mail-reply-all.png",
+      "category": "small-icons",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "actions-media-skip-forward-fa056b2af1",
+      "path": "..\\..\\data\\benchmark-suite\\images\\icon_64\\actions-media-skip-forward.png",
+      "category": "small-icons",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "apps-accessories-character-map-b75a90ea13",
+      "path": "..\\..\\data\\benchmark-suite\\images\\icon_64\\apps-accessories-character-map.png",
+      "category": "small-icons",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "apps-preferences-desktop-font-9b64a8f336",
+      "path": "..\\..\\data\\benchmark-suite\\images\\icon_64\\apps-preferences-desktop-font.png",
+      "category": "small-icons",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "apps-system-file-manager-3d1af4acc3",
+      "path": "..\\..\\data\\benchmark-suite\\images\\icon_64\\apps-system-file-manager.png",
+      "category": "small-icons",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "categories-applications-multimedia-bd9582e504",
+      "path": "..\\..\\data\\benchmark-suite\\images\\icon_64\\categories-applications-multimedia.png",
+      "category": "small-icons",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "devices-camera-photo-3e47b63ff9",
+      "path": "..\\..\\data\\benchmark-suite\\images\\icon_64\\devices-camera-photo.png",
+      "category": "small-icons",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "devices-media-optical-1fbcd150a6",
+      "path": "..\\..\\data\\benchmark-suite\\images\\icon_64\\devices-media-optical.png",
+      "category": "small-icons",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "emblems-emblem-system-8b149dbddf",
+      "path": "..\\..\\data\\benchmark-suite\\images\\icon_64\\emblems-emblem-system.png",
+      "category": "small-icons",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "emotes-face-sad-eb02290d96",
+      "path": "..\\..\\data\\benchmark-suite\\images\\icon_64\\emotes-face-sad.png",
+      "category": "small-icons",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "mimetypes-text-html-33dbf59a73",
+      "path": "..\\..\\data\\benchmark-suite\\images\\icon_64\\mimetypes-text-html.png",
+      "category": "small-icons",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "mimetypes-x-office-presentation-template-5b84de9af7",
+      "path": "..\\..\\data\\benchmark-suite\\images\\icon_64\\mimetypes-x-office-presentation-template.png",
+      "category": "small-icons",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "places-user-desktop-f164db6238",
+      "path": "..\\..\\data\\benchmark-suite\\images\\icon_64\\places-user-desktop.png",
+      "category": "small-icons",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "status-folder-drag-accept-d1147ef1f2",
+      "path": "..\\..\\data\\benchmark-suite\\images\\icon_64\\status-folder-drag-accept.png",
+      "category": "small-icons",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "status-network-transmit-71a0bb0f19",
+      "path": "..\\..\\data\\benchmark-suite\\images\\icon_64\\status-network-transmit.png",
+      "category": "small-icons",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "status-weather-overcast-1517fb1cbd",
+      "path": "..\\..\\data\\benchmark-suite\\images\\icon_64\\status-weather-overcast.png",
+      "category": "small-icons",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "actions-document-open-ea9384e310",
+      "path": "..\\..\\data\\benchmark-suite\\images\\icon_512\\actions-document-open.png",
+      "category": "large-icons",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "actions-edit-find-replace-e60bce0521",
+      "path": "..\\..\\data\\benchmark-suite\\images\\icon_512\\actions-edit-find-replace.png",
+      "category": "large-icons",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "actions-format-justify-left-6c920b855d",
+      "path": "..\\..\\data\\benchmark-suite\\images\\icon_512\\actions-format-justify-left.png",
+      "category": "large-icons",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "actions-go-last-8b85f17eb0",
+      "path": "..\\..\\data\\benchmark-suite\\images\\icon_512\\actions-go-last.png",
+      "category": "large-icons",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "actions-mail-reply-all-165e4213db",
+      "path": "..\\..\\data\\benchmark-suite\\images\\icon_512\\actions-mail-reply-all.png",
+      "category": "large-icons",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "actions-media-skip-forward-4f5458dd6b",
+      "path": "..\\..\\data\\benchmark-suite\\images\\icon_512\\actions-media-skip-forward.png",
+      "category": "large-icons",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "apps-accessories-character-map-1c9e0ae7ce",
+      "path": "..\\..\\data\\benchmark-suite\\images\\icon_512\\apps-accessories-character-map.png",
+      "category": "large-icons",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "apps-preferences-desktop-font-85cb5716d3",
+      "path": "..\\..\\data\\benchmark-suite\\images\\icon_512\\apps-preferences-desktop-font.png",
+      "category": "large-icons",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "apps-system-file-manager-bda8684c81",
+      "path": "..\\..\\data\\benchmark-suite\\images\\icon_512\\apps-system-file-manager.png",
+      "category": "large-icons",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "categories-applications-multimedia-7fbfb95743",
+      "path": "..\\..\\data\\benchmark-suite\\images\\icon_512\\categories-applications-multimedia.png",
+      "category": "large-icons",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "devices-camera-photo-da589471ba",
+      "path": "..\\..\\data\\benchmark-suite\\images\\icon_512\\devices-camera-photo.png",
+      "category": "large-icons",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "devices-media-optical-50496a9080",
+      "path": "..\\..\\data\\benchmark-suite\\images\\icon_512\\devices-media-optical.png",
+      "category": "large-icons",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "emblems-emblem-system-cda25b5239",
+      "path": "..\\..\\data\\benchmark-suite\\images\\icon_512\\emblems-emblem-system.png",
+      "category": "large-icons",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "emotes-face-sad-a7073f2f5f",
+      "path": "..\\..\\data\\benchmark-suite\\images\\icon_512\\emotes-face-sad.png",
+      "category": "large-icons",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "mimetypes-text-html-3ea6d7e15e",
+      "path": "..\\..\\data\\benchmark-suite\\images\\icon_512\\mimetypes-text-html.png",
+      "category": "large-icons",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "mimetypes-x-office-presentation-template-4ad5b15154",
+      "path": "..\\..\\data\\benchmark-suite\\images\\icon_512\\mimetypes-x-office-presentation-template.png",
+      "category": "large-icons",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "places-user-desktop-1c80103428",
+      "path": "..\\..\\data\\benchmark-suite\\images\\icon_512\\places-user-desktop.png",
+      "category": "large-icons",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "status-folder-drag-accept-2a85435c6e",
+      "path": "..\\..\\data\\benchmark-suite\\images\\icon_512\\status-folder-drag-accept.png",
+      "category": "large-icons",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "status-network-transmit-4a3ac96852",
+      "path": "..\\..\\data\\benchmark-suite\\images\\icon_512\\status-network-transmit.png",
+      "category": "large-icons",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "status-weather-overcast-d75c6bdc1a",
+      "path": "..\\..\\data\\benchmark-suite\\images\\icon_512\\status-weather-overcast.png",
+      "category": "large-icons",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "Agar.io_gameplay-b0ac1d605c",
+      "path": "..\\..\\data\\benchmark-suite\\images\\screenshot_game\\Agar.io_gameplay.png",
+      "category": "game-screenshots",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "B.A.L.L.Z-e7af236ded",
+      "path": "..\\..\\data\\benchmark-suite\\images\\screenshot_game\\B.A.L.L.Z.png",
+      "category": "game-screenshots",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "Blek_-_Level_3_screenshot-df3960470c",
+      "path": "..\\..\\data\\benchmark-suite\\images\\screenshot_game\\Blek_-_Level_3_screenshot.png",
+      "category": "game-screenshots",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "Celeste_screenshot_07-f3c5463b87",
+      "path": "..\\..\\data\\benchmark-suite\\images\\screenshot_game\\Celeste_screenshot_07.png",
+      "category": "game-screenshots",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "Contraption_8-23a129911b",
+      "path": "..\\..\\data\\benchmark-suite\\images\\screenshot_game\\Contraption_8.png",
+      "category": "game-screenshots",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "Dr._Langeskov,_The_Tiger,_and_The_Terribly_Cursed_Emerald_Screenshot_3-45e64f2650",
+      "path": "..\\..\\data\\benchmark-suite\\images\\screenshot_game\\Dr._Langeskov,_The_Tiger,_and_The_Terribly_Cursed_Emerald_Screenshot_3.png",
+      "category": "game-screenshots",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "Fantastic_Contraption_VR_screenshot_05-7757bb8f6b",
+      "path": "..\\..\\data\\benchmark-suite\\images\\screenshot_game\\Fantastic_Contraption_VR_screenshot_05.png",
+      "category": "game-screenshots",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "Galak-Z_screenshot_-_explosion_centipede-7a1d1dd439",
+      "path": "..\\..\\data\\benchmark-suite\\images\\screenshot_game\\Galak-Z_screenshot_-_explosion_centipede.png",
+      "category": "game-screenshots",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "Job_Simulator_screenshot_-_Auto_01-38988a2a32",
+      "path": "..\\..\\data\\benchmark-suite\\images\\screenshot_game\\Job_Simulator_screenshot_-_Auto_01.png",
+      "category": "game-screenshots",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "Lemonade_Stand_2-6f8cb076ed",
+      "path": "..\\..\\data\\benchmark-suite\\images\\screenshot_game\\Lemonade_Stand_2.png",
+      "category": "game-screenshots",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "Mode_7_on_GBA-87ed08a855",
+      "path": "..\\..\\data\\benchmark-suite\\images\\screenshot_game\\Mode_7_on_GBA.png",
+      "category": "game-screenshots",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "Neverball_Pausenmen%C3%BC-b25b7c9591",
+      "path": "..\\..\\data\\benchmark-suite\\images\\screenshot_game\\Neverball_Pausenmen%C3%BC.png",
+      "category": "game-screenshots",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "Orwell_video_game_screenshot_10-aa5449dc04",
+      "path": "..\\..\\data\\benchmark-suite\\images\\screenshot_game\\Orwell_video_game_screenshot_10.png",
+      "category": "game-screenshots",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "Push_Me_Pull_You_screenshot_02-fbf284a8fc",
+      "path": "..\\..\\data\\benchmark-suite\\images\\screenshot_game\\Push_Me_Pull_You_screenshot_02.png",
+      "category": "game-screenshots",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "Rain_World_screenshot_-_subway-ff4a536d28",
+      "path": "..\\..\\data\\benchmark-suite\\images\\screenshot_game\\Rain_World_screenshot_-_subway.png",
+      "category": "game-screenshots",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "Severed_screenshot_02-acb738fcc6",
+      "path": "..\\..\\data\\benchmark-suite\\images\\screenshot_game\\Severed_screenshot_02.png",
+      "category": "game-screenshots",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "Stay_Frosty_(SpiceWare)_1-e3529d48bb",
+      "path": "..\\..\\data\\benchmark-suite\\images\\screenshot_game\\Stay_Frosty_(SpiceWare)_1.png",
+      "category": "game-screenshots",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "This_Is_the_Police_-_Screenshot_09-c821893c63",
+      "path": "..\\..\\data\\benchmark-suite\\images\\screenshot_game\\This_Is_the_Police_-_Screenshot_09.png",
+      "category": "game-screenshots",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "Thrust_InGame-fca9577fad",
+      "path": "..\\..\\data\\benchmark-suite\\images\\screenshot_game\\Thrust_InGame.png",
+      "category": "game-screenshots",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "Triplane_Turmoil_screenshot-91e2032978",
+      "path": "..\\..\\data\\benchmark-suite\\images\\screenshot_game\\Triplane_Turmoil_screenshot.png",
+      "category": "game-screenshots",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "amazon.com-c8b17cd178",
+      "path": "..\\..\\data\\benchmark-suite\\images\\screenshot_web\\amazon.com.png",
+      "category": "web-screenshots",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "apple.com-12760d2aca",
+      "path": "..\\..\\data\\benchmark-suite\\images\\screenshot_web\\apple.com.png",
+      "category": "web-screenshots",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "cnn.com-af3f241944",
+      "path": "..\\..\\data\\benchmark-suite\\images\\screenshot_web\\cnn.com.png",
+      "category": "web-screenshots",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "creativecommons.org-bfedd19749",
+      "path": "..\\..\\data\\benchmark-suite\\images\\screenshot_web\\creativecommons.org.png",
+      "category": "web-screenshots",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "duckduckgo.com-9db332930a",
+      "path": "..\\..\\data\\benchmark-suite\\images\\screenshot_web\\duckduckgo.com.png",
+      "category": "web-screenshots",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "en.wikipedia.org-d2c96369a0",
+      "path": "..\\..\\data\\benchmark-suite\\images\\screenshot_web\\en.wikipedia.org.png",
+      "category": "web-screenshots",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "imdb.com-705b60c65a",
+      "path": "..\\..\\data\\benchmark-suite\\images\\screenshot_web\\imdb.com.png",
+      "category": "web-screenshots",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "microsoft.com-7ea369d4a7",
+      "path": "..\\..\\data\\benchmark-suite\\images\\screenshot_web\\microsoft.com.png",
+      "category": "web-screenshots",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "news.ycombinator.com-a89f2fd403",
+      "path": "..\\..\\data\\benchmark-suite\\images\\screenshot_web\\news.ycombinator.com.png",
+      "category": "web-screenshots",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "nytimes.com-7b3664d801",
+      "path": "..\\..\\data\\benchmark-suite\\images\\screenshot_web\\nytimes.com.png",
+      "category": "web-screenshots",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "phoboslab.org-11a5c73886",
+      "path": "..\\..\\data\\benchmark-suite\\images\\screenshot_web\\phoboslab.org.png",
+      "category": "web-screenshots",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "reddit.com-b6293b1c4e",
+      "path": "..\\..\\data\\benchmark-suite\\images\\screenshot_web\\reddit.com.png",
+      "category": "web-screenshots",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "stripe.com-3be11e9618",
+      "path": "..\\..\\data\\benchmark-suite\\images\\screenshot_web\\stripe.com.png",
+      "category": "web-screenshots",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "sublime-4b82f697b5",
+      "path": "..\\..\\data\\benchmark-suite\\images\\screenshot_web\\sublime.png",
+      "category": "web-screenshots",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "kodim05-235c70f077",
+      "path": "..\\..\\data\\benchmark-suite\\images\\photo_kodak\\kodim05.png",
+      "category": "photographs",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "kodim13-5bba1abf02",
+      "path": "..\\..\\data\\benchmark-suite\\images\\photo_kodak\\kodim13.png",
+      "category": "photographs",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "kodim22-3001e61e76",
+      "path": "..\\..\\data\\benchmark-suite\\images\\photo_kodak\\kodim22.png",
+      "category": "photographs",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "RGB_OR_1200x1200_007-c55533adf5",
+      "path": "..\\..\\data\\benchmark-suite\\images\\photo_tecnick\\RGB_OR_1200x1200_007.png",
+      "category": "photographs",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "RGB_OR_1200x1200_015-481b9d880b",
+      "path": "..\\..\\data\\benchmark-suite\\images\\photo_tecnick\\RGB_OR_1200x1200_015.png",
+      "category": "photographs",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "RGB_OR_1200x1200_024-114fa9687e",
+      "path": "..\\..\\data\\benchmark-suite\\images\\photo_tecnick\\RGB_OR_1200x1200_024.png",
+      "category": "photographs",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "RGB_OR_1200x1200_033-78b0b8d660",
+      "path": "..\\..\\data\\benchmark-suite\\images\\photo_tecnick\\RGB_OR_1200x1200_033.png",
+      "category": "photographs",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "RGB_OR_1200x1200_041-651c154274",
+      "path": "..\\..\\data\\benchmark-suite\\images\\photo_tecnick\\RGB_OR_1200x1200_041.png",
+      "category": "photographs",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "RGB_OR_1200x1200_050-8e155d39cd",
+      "path": "..\\..\\data\\benchmark-suite\\images\\photo_tecnick\\RGB_OR_1200x1200_050.png",
+      "category": "photographs",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "RGB_OR_1200x1200_059-86027fc22c",
+      "path": "..\\..\\data\\benchmark-suite\\images\\photo_tecnick\\RGB_OR_1200x1200_059.png",
+      "category": "photographs",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "RGB_OR_1200x1200_067-fedec13c49",
+      "path": "..\\..\\data\\benchmark-suite\\images\\photo_tecnick\\RGB_OR_1200x1200_067.png",
+      "category": "photographs",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "RGB_OR_1200x1200_076-d282ba05ba",
+      "path": "..\\..\\data\\benchmark-suite\\images\\photo_tecnick\\RGB_OR_1200x1200_076.png",
+      "category": "photographs",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "RGB_OR_1200x1200_085-a914e08d84",
+      "path": "..\\..\\data\\benchmark-suite\\images\\photo_tecnick\\RGB_OR_1200x1200_085.png",
+      "category": "photographs",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "RGB_OR_1200x1200_093-75932393c2",
+      "path": "..\\..\\data\\benchmark-suite\\images\\photo_tecnick\\RGB_OR_1200x1200_093.png",
+      "category": "photographs",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "002-de9808d0ac",
+      "path": "..\\..\\data\\benchmark-suite\\images\\photo_wikipedia\\002.png",
+      "category": "photographs",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "011-44d6e246fb",
+      "path": "..\\..\\data\\benchmark-suite\\images\\photo_wikipedia\\011.png",
+      "category": "photographs",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "019-c1a1b05601",
+      "path": "..\\..\\data\\benchmark-suite\\images\\photo_wikipedia\\019.png",
+      "category": "photographs",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "028-0deb39d0c9",
+      "path": "..\\..\\data\\benchmark-suite\\images\\photo_wikipedia\\028.png",
+      "category": "photographs",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "037-2d8ad1c8f0",
+      "path": "..\\..\\data\\benchmark-suite\\images\\photo_wikipedia\\037.png",
+      "category": "photographs",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "045-7c1330cf7d",
+      "path": "..\\..\\data\\benchmark-suite\\images\\photo_wikipedia\\045.png",
+      "category": "photographs",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "clover-10dc9a1638",
+      "path": "..\\..\\data\\benchmark-suite\\images\\textures_photo\\clover.png",
+      "category": "photographic-textures",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "grass1-9e993335a8",
+      "path": "..\\..\\data\\benchmark-suite\\images\\textures_photo\\grass1.png",
+      "category": "photographic-textures",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "IMGP5480_seamless-6fd2e01bff",
+      "path": "..\\..\\data\\benchmark-suite\\images\\textures_photo\\IMGP5480_seamless.png",
+      "category": "photographic-textures",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "IMGP5482_seamless-a62c74ad3e",
+      "path": "..\\..\\data\\benchmark-suite\\images\\textures_photo\\IMGP5482_seamless.png",
+      "category": "photographic-textures",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "IMGP5487_seamless-d493f8d807",
+      "path": "..\\..\\data\\benchmark-suite\\images\\textures_photo\\IMGP5487_seamless.png",
+      "category": "photographic-textures",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "IMGP5493_seamless_1-add1947adc",
+      "path": "..\\..\\data\\benchmark-suite\\images\\textures_photo\\IMGP5493_seamless_1.png",
+      "category": "photographic-textures",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "IMGP5493_seamless_2-91db69f9c6",
+      "path": "..\\..\\data\\benchmark-suite\\images\\textures_photo\\IMGP5493_seamless_2.png",
+      "category": "photographic-textures",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "IMGP5497_seamless-4522560560",
+      "path": "..\\..\\data\\benchmark-suite\\images\\textures_photo\\IMGP5497_seamless.png",
+      "category": "photographic-textures",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "IMGP5498_seamless-d29002db7b",
+      "path": "..\\..\\data\\benchmark-suite\\images\\textures_photo\\IMGP5498_seamless.png",
+      "category": "photographic-textures",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "IMGP5505_seamless-af0557c628",
+      "path": "..\\..\\data\\benchmark-suite\\images\\textures_photo\\IMGP5505_seamless.png",
+      "category": "photographic-textures",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "IMGP5511_seamless-4bc6846fac",
+      "path": "..\\..\\data\\benchmark-suite\\images\\textures_photo\\IMGP5511_seamless.png",
+      "category": "photographic-textures",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "IMGP5514_seamless_1-fae01a1a6a",
+      "path": "..\\..\\data\\benchmark-suite\\images\\textures_photo\\IMGP5514_seamless_1.png",
+      "category": "photographic-textures",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "IMGP5514_seamless_2-bd674a308e",
+      "path": "..\\..\\data\\benchmark-suite\\images\\textures_photo\\IMGP5514_seamless_2.png",
+      "category": "photographic-textures",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "IMGP5525_seamless-1dee4e7296",
+      "path": "..\\..\\data\\benchmark-suite\\images\\textures_photo\\IMGP5525_seamless.png",
+      "category": "photographic-textures",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "IMGP5539_almost_seamless-bdd486b4b2",
+      "path": "..\\..\\data\\benchmark-suite\\images\\textures_photo\\IMGP5539_almost_seamless.png",
+      "category": "photographic-textures",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "IMGP5546_seamless-df30d34ab8",
+      "path": "..\\..\\data\\benchmark-suite\\images\\textures_photo\\IMGP5546_seamless.png",
+      "category": "photographic-textures",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "rock01-60bcb43f12",
+      "path": "..\\..\\data\\benchmark-suite\\images\\textures_photo\\rock01.png",
+      "category": "photographic-textures",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "rock02-2945080634",
+      "path": "..\\..\\data\\benchmark-suite\\images\\textures_photo\\rock02.png",
+      "category": "photographic-textures",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "rock02_2-63602abf4d",
+      "path": "..\\..\\data\\benchmark-suite\\images\\textures_photo\\rock02_2.png",
+      "category": "photographic-textures",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "rock03-5c36bc4810",
+      "path": "..\\..\\data\\benchmark-suite\\images\\textures_photo\\rock03.png",
+      "category": "photographic-textures",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "her_wood_1-b1a580df84",
+      "path": "..\\..\\data\\benchmark-suite\\images\\textures_pk\\her_wood_1.png",
+      "category": "game-plant-textures",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "mis_trim2d-9bf10395c5",
+      "path": "..\\..\\data\\benchmark-suite\\images\\textures_pk\\mis_trim2d.png",
+      "category": "game-plant-textures",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "mod_labtiles2b-7a0fea90f2",
+      "path": "..\\..\\data\\benchmark-suite\\images\\textures_pk\\mod_labtiles2b.png",
+      "category": "game-plant-textures",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "mod_screen1c-ec2b673509",
+      "path": "..\\..\\data\\benchmark-suite\\images\\textures_pk\\mod_screen1c.png",
+      "category": "game-plant-textures",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "pk_chcrowall1g-0ba3ff67e9",
+      "path": "..\\..\\data\\benchmark-suite\\images\\textures_pk\\pk_chcrowall1g.png",
+      "category": "game-plant-textures",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "pk_chinwpaper1a-285623cda0",
+      "path": "..\\..\\data\\benchmark-suite\\images\\textures_pk\\pk_chinwpaper1a.png",
+      "category": "game-plant-textures",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "pkf_brush1b-61f6a89011",
+      "path": "..\\..\\data\\benchmark-suite\\images\\textures_pk\\pkf_brush1b.png",
+      "category": "game-plant-textures",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "pkf_road1b-09337640a3",
+      "path": "..\\..\\data\\benchmark-suite\\images\\textures_pk\\pkf_road1b.png",
+      "category": "game-plant-textures",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "pkf_wall1l-2205bc4b00",
+      "path": "..\\..\\data\\benchmark-suite\\images\\textures_pk\\pkf_wall1l.png",
+      "category": "game-plant-textures",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "pkh_tiles01b-1877109040",
+      "path": "..\\..\\data\\benchmark-suite\\images\\textures_pk\\pkh_tiles01b.png",
+      "category": "game-plant-textures",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "pkw_road01-b2368be789",
+      "path": "..\\..\\data\\benchmark-suite\\images\\textures_pk\\pkw_road01.png",
+      "category": "game-plant-textures",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "pkw_wall04h-85dea9323d",
+      "path": "..\\..\\data\\benchmark-suite\\images\\textures_pk\\pkw_wall04h.png",
+      "category": "game-plant-textures",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "pkw_winlay10a-ca09d5fc17",
+      "path": "..\\..\\data\\benchmark-suite\\images\\textures_pk\\pkw_winlay10a.png",
+      "category": "game-plant-textures",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "{mod_labfloor1-4be7f804e1",
+      "path": "..\\..\\data\\benchmark-suite\\images\\textures_pk\\{mod_labfloor1.png",
+      "category": "game-plant-textures",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "pk01_pan_floor01_s-063ef56d64",
+      "path": "..\\..\\data\\benchmark-suite\\images\\textures_pk01\\pk01_pan_floor01_s.png",
+      "category": "game-plant-textures",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "pk01_vent_wall02_d-a2c84cb05c",
+      "path": "..\\..\\data\\benchmark-suite\\images\\textures_pk01\\pk01_vent_wall02_d.png",
+      "category": "game-plant-textures",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "pk02_floor03_N-a5694d7168",
+      "path": "..\\..\\data\\benchmark-suite\\images\\textures_pk02\\pk02_floor03_N.png",
+      "category": "game-plant-textures",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "pk02_panels01c_C-6b686d6d03",
+      "path": "..\\..\\data\\benchmark-suite\\images\\textures_pk02\\pk02_panels01c_C.png",
+      "category": "game-plant-textures",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "pk02_wall03b_C-78b78c3d1c",
+      "path": "..\\..\\data\\benchmark-suite\\images\\textures_pk02\\pk02_wall03b_C.png",
+      "category": "game-plant-textures",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "plant_25-4be3535e62",
+      "path": "..\\..\\data\\benchmark-suite\\images\\textures_plants\\plant_25.png",
+      "category": "game-plant-textures",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "anime_girl_PNG22-520d0ed176",
+      "path": "..\\..\\data\\benchmark-suite\\images\\pngimg\\anime_girl_PNG22.png",
+      "category": "transparent-png",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "bone_PNG30-a4c42876cd",
+      "path": "..\\..\\data\\benchmark-suite\\images\\pngimg\\bone_PNG30.png",
+      "category": "transparent-png",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "candle_PNG7268-7586d42a87",
+      "path": "..\\..\\data\\benchmark-suite\\images\\pngimg\\candle_PNG7268.png",
+      "category": "transparent-png",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "christmas_garland_PNG19-bf901b684d",
+      "path": "..\\..\\data\\benchmark-suite\\images\\pngimg\\christmas_garland_PNG19.png",
+      "category": "transparent-png",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "dachshund_PNG57-b7ddefddb9",
+      "path": "..\\..\\data\\benchmark-suite\\images\\pngimg\\dachshund_PNG57.png",
+      "category": "transparent-png",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "dreamcatcher_PNG28-d27eaf5f02",
+      "path": "..\\..\\data\\benchmark-suite\\images\\pngimg\\dreamcatcher_PNG28.png",
+      "category": "transparent-png",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "football_player_PNG54-0b5dbe292b",
+      "path": "..\\..\\data\\benchmark-suite\\images\\pngimg\\football_player_PNG54.png",
+      "category": "transparent-png",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "hairbrush_PNG95-d0a0ed91fb",
+      "path": "..\\..\\data\\benchmark-suite\\images\\pngimg\\hairbrush_PNG95.png",
+      "category": "transparent-png",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "ice_skates_PNG64-dd28bcb759",
+      "path": "..\\..\\data\\benchmark-suite\\images\\pngimg\\ice_skates_PNG64.png",
+      "category": "transparent-png",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "jet_fighter_PNG15-226ce9fd45",
+      "path": "..\\..\\data\\benchmark-suite\\images\\pngimg\\jet_fighter_PNG15.png",
+      "category": "transparent-png",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "lighter_PNG11167-a55fe5ff64",
+      "path": "..\\..\\data\\benchmark-suite\\images\\pngimg\\lighter_PNG11167.png",
+      "category": "transparent-png",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "measure_tape_PNG69-bc43ddb67b",
+      "path": "..\\..\\data\\benchmark-suite\\images\\pngimg\\measure_tape_PNG69.png",
+      "category": "transparent-png",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "number8_PNG18700-dd47784849",
+      "path": "..\\..\\data\\benchmark-suite\\images\\pngimg\\number8_PNG18700.png",
+      "category": "transparent-png",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "pizza_PNG44037-baa368d6e9",
+      "path": "..\\..\\data\\benchmark-suite\\images\\pngimg\\pizza_PNG44037.png",
+      "category": "transparent-png",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "razor_blade_PNG17804-641e137305",
+      "path": "..\\..\\data\\benchmark-suite\\images\\pngimg\\razor_blade_PNG17804.png",
+      "category": "transparent-png",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "silver_PNG17125-ea487f93e3",
+      "path": "..\\..\\data\\benchmark-suite\\images\\pngimg\\silver_PNG17125.png",
+      "category": "transparent-png",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "sony_playstation_PNG17534-9dda8ccb35",
+      "path": "..\\..\\data\\benchmark-suite\\images\\pngimg\\sony_playstation_PNG17534.png",
+      "category": "transparent-png",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "superman_PNG43-fccc443a41",
+      "path": "..\\..\\data\\benchmark-suite\\images\\pngimg\\superman_PNG43.png",
+      "category": "transparent-png",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "towel_PNG99-44cda489ad",
+      "path": "..\\..\\data\\benchmark-suite\\images\\pngimg\\towel_PNG99.png",
+      "category": "transparent-png",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    },
+    {
+      "id": "wheelchair_PNG82760-a458d17965",
+      "path": "..\\..\\data\\benchmark-suite\\images\\pngimg\\wheelchair_PNG82760.png",
+      "category": "transparent-png",
+      "channel_mode": "unknown",
+      "stage": "tuning"
+    }
+  ]
+}

@@ -1,5 +1,0 @@
-import type { Benchmark, Manifest, Scenario, ScenarioEntry } from './types';
-async function loadJson<T>(url: string): Promise<T> { const response = await fetch(url); if (!response.ok) throw new Error(`Unable to load ${url} (${response.status})`); return response.json() as Promise<T>; }
-export async function loadManifest(url = './data/manifest.json'): Promise<Manifest> { const manifest = await loadJson<Manifest>(url); if (manifest.schemaVersion !== 2) throw new Error(`Unsupported dashboard data schema: ${manifest.schemaVersion}`); if (!Array.isArray(manifest.visualizationScenarios)||!manifest.benchmarksUrl) throw new Error('Manifest is missing required fields'); return manifest; }
-export async function loadScenario(entry: ScenarioEntry): Promise<Scenario> { if (!entry.url) throw new Error(`Scenario ${entry.id} has no preview data`); const data = await loadJson<{frames: Scenario['frames']}>(entry.url); if (!Array.isArray(data.frames)) throw new Error(`Scenario ${entry.id} has no frames`); return {...entry,frames:data.frames}; }
-export const loadBenchmarks = (url: string) => loadJson<Benchmark[]>(url);

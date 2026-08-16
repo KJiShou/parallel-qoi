@@ -1,101 +1,201 @@
-# PDC Wildfire Methods
+# Parallel QOI Converter
 
-This folder contains real code examples for the four implementations described in the PDC proposal:
+An interactive Windows Electron application for converting PNG/BMP images to
+the standard Quite OK Image Format (QOI), validating the decoded pixels, and
+comparing Serial, OpenMP, CUDA, and MPI execution models.
 
-1. Serial CPU baseline
-2. OpenMP shared-memory CPU version
-3. CUDA GPU version
-4. MPI distributed-memory version
+The repository has two runtime layers:
 
-All implementations use the same deterministic cellular automata wildfire rules, fixed random seed, grid size, timestep count, checksum, and burned-cell validation.
+- `src/` and `include/` contain the C++17 native core, shared QOI primitives,
+  validation, metrics, and the four backend algorithms.
+- `dashboard/` contains the Electron main process and the Arco Design React
+  renderer. The renderer uses a restricted preload API and never starts native
+  processes or reads arbitrary files directly.
 
-## Build with CMake
+## Backend algorithm files
 
-On this machine, use the Visual Studio generator:
+These are the main files to edit when working on parallel algorithms:
 
-```bash
-cmake -S . -B build_verified -G "Visual Studio 17 2022" -A x64
-cmake --build build_verified --config Release
+| Backend | Algorithm file | Responsibility |
+| --- | --- | --- |
+| Serial | `src/backends/serial_encoder.cpp` | Sequential block encoding and correctness baseline |
+| OpenMP | `src/backends/openmp_encoder.cpp` | Static-scheduled CPU block summary and encoding |
+| CUDA | `src/backends/cuda_encoder.cu` | GPU segment kernels, transfers, prefix scan, and device output merge |
+| MPI | `src/backends/mpi_encoder.cpp` | Rank distribution, local encoding, gather, and rank-0 merge |
+
+The shared code in `src/core/` owns image loading, block partitioning, QOI
+state propagation, QOI chunk primitives, output assembly, validation, and JSON
+metrics. `src/core/qoi_codec.cpp` is deliberately shared; it is not a fifth
+backend algorithm.
+
+One-pass remains an internal native experiment through `pqoi_control` and is
+not shown in the Electron product UI.
+
+## Requirements
+
+For the Windows development build:
+
+- Visual Studio 2022 C++ workload
+- CMake 3.21 or newer
+- Node.js and pnpm for the dashboard
+- NVIDIA CUDA Toolkit and a compatible GPU for CUDA builds
+- Microsoft MPI runtime, SDK, headers, and libraries for MPI builds
+
+The current full preset contains native CUDA code for Compute Capabilities 8.6
+(RTX 3050 Ti) and 8.9 (RTX 4060). CUDA Toolkit 11.8 or newer is required for
+the 8.9 target.
+
+## Build the native backends
+
+Serial and OpenMP build:
+
+```powershell
+cmake --preset windows-msvc
+cmake --build --preset windows-msvc-release
+ctest --test-dir build-msvc -C Release --output-on-failure
 ```
 
-The CMake file defaults CUDA architecture to `89`, which matches the RTX 4060 Laptop GPU used for verification.
+Complete CUDA and MPI build:
 
-## Run
-
-```bash
-./build_mpi_fallback/Release/wildfire_serial.exe
-./build_mpi_fallback/Release/wildfire_openmp.exe
-./build_mpi_fallback/Release/wildfire_cuda.exe
-mpiexec -n 4 ./build_mpi_fallback/Release/wildfire_mpi.exe
+```powershell
+cmake --preset windows-full
+cmake --build --preset windows-full-release
+ctest --test-dir build-full -C Release --output-on-failure
 ```
 
-`wildfire_mpi.exe` is built through the MS-MPI fallback path in `CMakeLists.txt` when Microsoft MPI SDK is installed.
+The executables are written to `build-msvc/Release` or `build-full/Release`.
 
-## Correctness Check
+## Run the native CLI
 
-The `Burned cells` and `Checksum` values should match across Serial, OpenMP, CUDA and MPI for the same configuration.
-
-Verified on 4 July 2026 for Serial, OpenMP, CUDA and MPI:
+All ordinary backends use the same argument contract:
 
 ```text
-Serial CPU result
-Burned cells: 106721
-Checksum: 5934029897580874713
-
-OpenMP CPU result
-Burned cells: 106721
-Checksum: 5934029897580874713
-
-CUDA GPU result
-Burned cells: 106721
-Checksum: 5934029897580874713
-
-MPI result
-Burned cells: 106721
-Checksum: 5934029897580874713
-MPI processes: 4
+--input <path> --output <path> --result <path> --preview <path>
+--blocks <count> --threads <count> --segment-length <pixels>
+--cuda-threads-per-block <count> --validate
 ```
 
-## Methodology Usage
+Backend parameter semantics are intentionally separate so that two inputs do
+not silently compete to control the same partitioning decision:
 
-Use `methodology_code_snippets.md` for short code excerpts in the proposal. Do not paste the full source files into the report unless required.
+| Backend | User-facing controls | Effective image partitions |
+| --- | --- | --- |
+| Serial | None | Fixed at 1 |
+| OpenMP | Threads, image partitions (`--blocks`) | Exact requested partition count, capped by pixel count |
+| CUDA | Pixels per segment (`--segment-length`), CUDA launch size (`--cuda-threads-per-block`) | `ceil(pixel_count / segment_length)` |
+| MPI | Processes (`mpiexec -n`), image partitions (`--blocks`) | At least one partition per process, capped by pixel count |
 
-## Configurable Runs
+The dashboard reports the effective partition count returned by the native
+backend. CUDA does not accept a separate partition-count tuning control.
 
-All backends use the same deterministic Moore-neighbourhood rules, fixed seed, double buffering, and JSON summary contract.
+Serial baseline:
 
-```bash
-./build_verified/Release/wildfire_serial.exe --rows 512 --cols 512 --steps 200 --density 0.7 --seed 42 --repetitions 3 --output results/serial.json
-./build_verified/Release/wildfire_openmp.exe --rows 512 --cols 512 --steps 200 --density 0.7 --seed 42 --threads 8 --repetitions 3 --output results/openmp.json
-./build_verified/Release/wildfire_cuda.exe --rows 512 --cols 512 --steps 200 --density 0.7 --seed 42 --block-size 256 --repetitions 3 --output results/cuda.json
-mpiexec -n 4 ./build_verified/Release/wildfire_mpi.exe --rows 512 --cols 512 --steps 200 --density 0.7 --seed 42 --repetitions 3 --output results/mpi.json
+```powershell
+build-msvc\Release\pqoi_serial.exe `
+  --input image.bmp `
+  --output out.qoi `
+  --result result.json `
+  --preview decoded.bmp `
+  --validate
 ```
 
-## Verification and Benchmarking
+OpenMP example:
 
-The correctness gate compares burned cells and checksum across all four implementations, including an MPI case with uneven row partitioning:
-
-```bash
-python scripts/verify_correctness.py --build-dir build_verified/Release
-python scripts/run_benchmarks.py --profile smoke --build-dir build_verified/Release
+```powershell
+build-msvc\Release\pqoi_openmp.exe `
+  --input image.bmp --output openmp.qoi `
+  --result openmp.json --preview openmp.bmp `
+  --threads 8 --blocks 32 --validate
 ```
 
-The benchmark driver writes raw JSON summaries and a consolidated CSV to `results/generated/`. Generated build/results files are ignored by Git.
+CUDA example:
 
-## Dashboard
+```powershell
+build-full\Release\pqoi_cuda.exe `
+  --input image.bmp --output cuda.qoi `
+  --result cuda.json --preview cuda.bmp `
+  --segment-length 1024 --cuda-threads-per-block 128 --validate
+```
 
-The dashboard reads precomputed frames and benchmark data. It does not launch or time the C++ executables from the browser.
+MPI must be launched through `mpiexec`:
 
-```bash
-mkdir -p dashboard/public/data
-./build_verified/Release/wildfire_serial.exe --rows 100 --cols 100 --steps 50 --density 0.7 --seed 42 --frame-interval 5 --frames results/demo_serial.json --output results/demo_summary.json
-cp results/demo_serial.json dashboard/public/data/demo_serial.json
-cp results/generated/benchmarks.json dashboard/public/data/benchmarks.json
+```powershell
+mpiexec -n 4 build-full\Release\pqoi_mpi.exe `
+  --input image.bmp --output mpi.qoi `
+  --result mpi.json --preview mpi.bmp --validate
+```
 
+`result.json` is the stable integration boundary between native executables
+and Electron. It contains backend configuration, input-decode timing, CUDA
+initialization/allocation timing when applicable, encode phases, output size,
+compression ratio, throughput, and complete pixel validation status. The
+schema is documented in `benchmark/schemas/benchmark-result.schema.json`.
+
+## Run the Electron dashboard
+
+```powershell
 cd dashboard
-npm install
-npm run build
-npm run dev
+pnpm install
+pnpm run dev
 ```
 
-The dashboard provides Canvas playback, play/pause and frame controls, wildfire state legend, current-frame statistics, and a benchmark result table.
+The dashboard provides:
+
+- **Convert**: upload one PNG/BMP, choose a backend, preview decoded QOI, and
+  save only after validation succeeds.
+- **Compare**: run selected backends sequentially and compare encode runtime,
+  throughput, speedup, output size, phase timings, and validation. The phase
+  chart labels image decoding as `Input decode` and shows CUDA initialization
+  and GPU allocation separately from the actual kernel encode.
+- **Performance charts**: Runtime, Throughput, and Phase Breakdown tabs using
+  existing native result data without network requests.
+
+The Electron main process detects executable, CUDA, and MPI availability. It
+keeps a persistent CUDA worker so CUDA initialization and reusable buffer
+allocation are amortized across conversions. An
+unavailable backend stays visible but disabled with a reason; Serial is the
+fallback correctness baseline.
+
+## Project layout
+
+```text
+parallel-qoi/
+├── include/pqoi/       C++ public interfaces and data structures
+├── src/core/           Shared image, QOI, validation, metrics, and CLI code
+├── src/backends/       Serial, OpenMP, CUDA, and MPI algorithms
+├── src/cli/            Executable entry points
+├── dashboard/electron/ Electron main process, IPC, and native process runner
+├── dashboard/src/      Arco Design renderer pages and components
+├── benchmark/          Benchmark scripts, config, and result schema
+├── tests/               Native unit tests
+└── third_party/        Vendored QOI and stb_image dependencies
+```
+
+Generated build directories, dashboard dependencies, packaged output, and
+benchmark result files are excluded by `.gitignore`.
+
+## Reproducible evaluation
+
+The `benchmark/` pipeline implements the Chapter 5 three-stage evaluation:
+official conformance images, a deterministic stratified tuning subset, and the
+full benchmark suite using selected configurations. It performs one warm-up
+and five measured runs, launches MPI through `mpiexec`, and reports per-image
+median/mean/standard deviation plus category and full-suite summaries.
+
+On Windows, double-click `run-final-benchmark.cmd` to run the complete report
+pipeline: configure/build/test, smoke validation, formal correctness, tuning,
+automatic best-configuration selection, the full suite, aggregation, and Excel
+report generation. Results are stored under `results/final-<git-commit>`. Run
+the launcher again after an interruption to resume successful artifacts.
+
+```powershell
+python benchmark/scripts/run_benchmarks.py `
+  --manifest benchmark/manifests/tuning.json --stage tuning `
+  --native-dir build-full/Release --output-dir results/evaluation
+
+python benchmark/scripts/aggregate_results.py `
+  --input-dir results/evaluation --output results/per-run.csv
+```
+
+See `docs/benchmark-protocol.md` for dataset manifest generation, parameter
+sweeps, timing boundaries, derived metrics and reproducibility requirements.

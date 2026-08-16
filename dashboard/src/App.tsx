@@ -1,34 +1,52 @@
-import React from 'react';
-import { loadBenchmarks, loadManifest, loadScenario } from './dataClient';
-import type { Backend, Benchmark, Manifest, Scenario } from './types';
-import type { LiveTrace, RunConfig, RunEvent } from './desktopApi';
-import { BACKEND_ORDER, buildSelectedConfigs, FIXED_RUN_SETTINGS, requiredTraceSteps } from './runConfig';
-import { LiveRunPanel } from './components/LiveRunPanel';
-import { FourBackendTimeComparison } from './components/FourBackendTimeComparison';
-import './style.css';
+import { useEffect, useState } from 'react'
+import { ConfigProvider, Layout, Space, Tabs, Tag, Typography } from '@arco-design/web-react'
+import type { BackendAvailability, SelectedImage } from './services/electronApi'
+import { electronApi } from './services/electronApi'
+import { ConvertPage } from './pages/ConvertPage'
+import { ComparePage } from './pages/ComparePage'
 
-const names: Record<Backend, string> = { serial: 'Serial', openmp: 'OpenMP', cuda: 'CUDA', mpi: 'MPI' };
-const baseConfig: RunConfig = { backend: 'serial', rows: 500, cols: 500, steps: 100, density: .7, seed: 42, repetitions: 3, threads: 4, processes: 4, blockSize: 256 };
-function BarChart({ data }: { data: Benchmark[] }) { const max = Math.max(...data.map((row) => row.runtimeMs.median), 1); return <div className="bar-chart">{data.map((row) => <div className="bar-row" key={`${row.backend}-${row.rows}`}><span>{names[row.backend]}</span><div className="bar-track"><div className={`bar bar-${row.backend}`} style={{ width: `${Math.max(3, row.runtimeMs.median / max * 100)}%` }} /></div><b>{row.runtimeMs.median.toFixed(2)} ms</b></div>)}</div>; }
+type View = 'convert' | 'compare'
+
 export function App() {
-  const desktop = Boolean(window.wildfireDesktop); const [manifest, setManifest] = React.useState<Manifest>(); const [scenario, setScenario] = React.useState<Scenario>(); const [liveTrace, setLiveTrace] = React.useState<LiveTrace>(); const [benchmarks, setBenchmarks] = React.useState<Benchmark[]>([]); const [runConfig, setRunConfig] = React.useState(baseConfig); const [selected, setSelected] = React.useState<Backend[]>([...BACKEND_ORDER]); const [liveRows, setLiveRows] = React.useState<Benchmark[]>([]); const [runId, setRunId] = React.useState(''); const [phase, setPhase] = React.useState('Idle'); const [log, setLog] = React.useState<string[]>([]); const [queueRunning, setQueueRunning] = React.useState(false); const [batchStarted,setBatchStarted]=React.useState(false); const [completed, setCompleted] = React.useState(0); const [frameIndex, setFrameIndex] = React.useState(0); const [error, setError] = React.useState('');
-  const queueRef = React.useRef<RunConfig[]>([]); const indexRef = React.useRef(-1); const runningRef = React.useRef(false); const configRef = React.useRef(runConfig); const selectedRef = React.useRef(selected); const liveRef = React.useRef(liveRows); const successfulRef = React.useRef<Benchmark[]>([]); const cancelledRef = React.useRef(false); const activeRunIdRef=React.useRef(''); const expectedTraceStepsRef=React.useRef(0); const launchPendingRef=React.useRef(false);
-  React.useEffect(() => { configRef.current = runConfig; }, [runConfig]); React.useEffect(() => { selectedRef.current = selected; }, [selected]); React.useEffect(() => { liveRef.current = liveRows; }, [liveRows]);
-  const selectionKey=`${runConfig.rows}:${runConfig.density}:${selected.join(',')}`; const previousSelectionRef=React.useRef(selectionKey);
-  React.useEffect(()=>{if(previousSelectionRef.current===selectionKey)return;previousSelectionRef.current=selectionKey;if(runningRef.current)return;setLiveTrace(undefined);setLiveRows([]);setBatchStarted(false);successfulRef.current=[];setPhase('Configuration changed · run selected methods');},[selectionKey]);
-  React.useEffect(() => { loadManifest().then((m) => { setManifest(m); return Promise.all([loadBenchmarks(m.benchmarksUrl), m.visualizationScenarios[0] ? loadScenario(m.visualizationScenarios[0]) : Promise.resolve(undefined)]); }).then(([rows, trace]) => { setBenchmarks(rows); setScenario(trace); }).catch((e) => setError(e instanceof Error ? e.message : 'Unable to load dashboard data')); }, []);
-  React.useEffect(() => { if (!desktop) return; return window.wildfireDesktop?.onRunEvent((event: RunEvent) => { if(event.type==='started'||event.type==='trace-started'){launchPendingRef.current=false;activeRunIdRef.current=event.runId;setRunId(event.runId);setPhase(event.type==='trace-started'?'Preparing playback trace':`Running ${names[event.backend as Backend]}`);if(cancelledRef.current)void window.wildfireDesktop?.cancelRun(event.runId);return;} if(!activeRunIdRef.current||event.runId!==activeRunIdRef.current)return; const config = queueRef.current[indexRef.current]; const backend = config?.backend ?? event.backend as Backend; if (event.type === 'trace-completed') { const trace=event.trace; const valid=trace&&trace.sourceRows===configRef.current.rows&&trace.sourceCols===configRef.current.cols&&trace.density===configRef.current.density&&trace.seed===configRef.current.seed&&trace.steps===expectedTraceStepsRef.current; activeRunIdRef.current='';setRunId('');runningRef.current=false;setQueueRunning(false);if(cancelledRef.current)setPhase('Cancelled');else if(valid){setLiveTrace(trace);setPhase('Playback ready');}else setPhase('Trace failed: stale or mismatched trace rejected'); } if (event.type === 'trace-failed') { activeRunIdRef.current='';setRunId('');runningRef.current=false; setQueueRunning(false); setPhase(cancelledRef.current?'Cancelled':`Trace failed: ${event.message}`); } if (event.type === 'log') setLog((lines) => [...lines, `${names[backend] ?? 'runner'} ${event.stream}: ${event.line ?? ''}`].slice(-40)); if (event.type === 'completed') { activeRunIdRef.current='';setRunId(''); if(cancelledRef.current){runningRef.current=false;setQueueRunning(false);setPhase('Cancelled');return;} const result = event.result as Benchmark; const serialResult = backend === 'serial' ? result : successfulRef.current.find((row) => row.backend === 'serial'); const speedup = serialResult ? serialResult.runtimeMs.median / result.runtimeMs.median : 0; const correctness:Benchmark['correctness']=backend==='serial'?'match':serialResult?(result.checksum===serialResult.checksum?'match':'mismatch'):undefined; const row:Benchmark = { ...result, backend, rows: config.rows, cols: config.cols, steps: 100, workers: backend === 'openmp' ? 4 : backend === 'mpi' ? 4 : 1, blockSize: backend === 'cuda' ? 256 : 0, speedup, efficiency: ['openmp', 'mpi'].includes(backend) && serialResult ? speedup / 4 : null, correctness }; successfulRef.current.push(row); setLiveRows([...successfulRef.current]); advanceQueue(); } if (event.type === 'failed') { activeRunIdRef.current='';setRunId(''); if(cancelledRef.current){runningRef.current=false;setQueueRunning(false);setPhase('Cancelled');return;} setPhase(`Failed ${names[backend]} · continuing`); advanceQueue(); } if (event.type === 'cancelled') { activeRunIdRef.current='';setRunId('');cancelledRef.current=true; runningRef.current = false; setQueueRunning(false); setPhase('Cancelled'); } }); }, [desktop, benchmarks]);
-  const launch = React.useCallback((index: number) => { if(cancelledRef.current||!runningRef.current)return; const config = queueRef.current[index]; if (!config || !window.wildfireDesktop) return; indexRef.current = index; activeRunIdRef.current=''; setRunId(''); setPhase(`Preparing ${names[config.backend]}`); launchPendingRef.current=true; window.wildfireDesktop.startRun(config).catch((e) => { launchPendingRef.current=false; if(cancelledRef.current){runningRef.current=false;setQueueRunning(false);setPhase('Cancelled');return;} setPhase(`Failed ${names[config.backend]} · continuing`); advanceQueue(); }); }, []);
-  const advanceQueue = React.useCallback(() => { const next = indexRef.current + 1; setCompleted(next); if (next < queueRef.current.length && runningRef.current && !cancelledRef.current) { window.setTimeout(() => launch(next), 100); } else if (!cancelledRef.current && successfulRef.current.length && window.wildfireDesktop) { const traceSteps=requiredTraceSteps(successfulRef.current.map(row=>row.runtimeMs.median),configRef.current.rows); expectedTraceStepsRef.current=traceSteps;activeRunIdRef.current='';setRunId(''); setPhase(`Benchmark complete · preparing ${traceSteps}-step trace`); launchPendingRef.current=true; window.wildfireDesktop.startTrace({rows:configRef.current.rows,cols:configRef.current.cols,density:configRef.current.density,seed:configRef.current.seed,traceSteps}).then(({runId})=>setRunId(runId)).catch(e=>{launchPendingRef.current=false;runningRef.current=false;setQueueRunning(false);setPhase(`Trace failed: ${e.message}`);}); } else { runningRef.current=false;setQueueRunning(false);setPhase(cancelledRef.current?'Cancelled':'No successful methods available for playback.'); } }, [launch]);
-  const start = () => { if (!desktop || runningRef.current) return; try { queueRef.current = buildSelectedConfigs({ rows: runConfig.rows, density: runConfig.density, methods: selectedRef.current }); } catch (e) { setPhase(e instanceof Error ? e.message : 'Select at least one method'); return; } setLog([]); setCompleted(0); setBatchStarted(true); setLiveRows([]); setLiveTrace(undefined); successfulRef.current=[];cancelledRef.current=false;activeRunIdRef.current='';expectedTraceStepsRef.current=0;launchPendingRef.current=false; runningRef.current = true; setQueueRunning(true); setPhase('Benchmark 100 steps × 3 · preparing first method'); launch(0); };
-  const cancel = () => { cancelledRef.current=true; setPhase('Cancelling'); if (activeRunIdRef.current && window.wildfireDesktop) void window.wildfireDesktop.cancelRun(activeRunIdRef.current); else if(!launchPendingRef.current){runningRef.current=false;setQueueRunning(false);setPhase('Cancelled');} };
-  const activeRows = batchStarted ? liveRows : benchmarks.filter((row) => selected.includes(row.backend) && row.rows === runConfig.rows && row.cols === runConfig.cols && (row.density??0.7)===runConfig.density); const chart = activeRows.slice().sort((a, b) => a.runtimeMs.median - b.runtimeMs.median); const hasSerialBaseline=selected.includes('serial')&&activeRows.some(row=>row.backend==='serial'); const serialChecksum=activeRows.find(row=>row.backend==='serial')?.checksum; const correctnessFor=(row:Benchmark):Benchmark['correctness']=>batchStarted?row.correctness:serialChecksum?(row.checksum===serialChecksum?'match':'mismatch'):undefined;
-  return <main><header className="app-header"><div><div className="eyebrow">BMCS2103 · PARALLEL AND DISTRIBUTED COMPUTING</div><h1>Wildfire Compute Lab</h1><p>Isolated backend runs, a bounded majority-state preview, and honest synchronized playback.</p></div><div className="verified-pill"><span /> VERIFIED DATASET</div></header>{error && <div className="error-banner">{error}</div>}
-    <LiveRunPanel config={runConfig} onConfig={setRunConfig} selected={selected} onSelected={setSelected} onRun={start} onCancel={cancel} running={queueRunning} phase={phase} log={log} desktop={desktop} completed={completed} total={queueRef.current.length || selected.length} currentBackend={queueRef.current[indexRef.current]?.backend ?? '-'} />
-    <FourBackendTimeComparison records={activeRows} rows={runConfig.rows} density={runConfig.density} seed={runConfig.seed} traceSteps={expectedTraceStepsRef.current} steps={FIXED_RUN_SETTINGS.steps} selected={selected} scenario={scenario} liveTrace={liveTrace} frameIndex={frameIndex} />
-    <section className="card trace-status"><div className="section-head"><div><div className="eyebrow">PREVIEW CONTRACT</div><h2>Bounded deterministic trace</h2></div><span className="muted">Canvas backing: 500 × 500</span></div><p>Source: {runConfig.rows}×{runConfig.rows} · Display: 500×500 · {Math.max(1, runConfig.rows / 500)}×{Math.max(1, runConfig.rows / 500)} cells/pixel · majority-state. The same trace is shared by every backend tile.</p></section>
-    <section className="summary-grid">{[['Source grid', `${runConfig.rows}²`], ['Active results', String(activeRows.length)], ['Fastest', activeRows.length ? names[activeRows.reduce((a, b) => a.runtimeMs.median < b.runtimeMs.median ? a : b).backend] : '—'], ['Max speedup', hasSerialBaseline&&activeRows.length ? `${Math.max(...activeRows.map((row) => row.speedup)).toFixed(2)}×` : 'N/A · Serial unavailable']].map(([label, value]) => <div className="card summary" key={label}><span>{label}</span><strong>{value}</strong></div>)}</section>
-    <section className="chart-grid"><div className="card"><div className="section-head"><h2>Active batch performance</h2><span className="muted">No user filters</span></div>{chart.length ? <BarChart data={chart} /> : <div className="empty">Run selected methods to populate active batch results.</div>}</div><div className="card notes"><h2>Reading the display</h2><p><b>Trace:</b> all tiles use the same deterministic fire trace.</p><p><b>Timing:</b> each tile's progress is positioned using its isolated median runtime, not live hardware telemetry.</p><p><b>Large grids:</b> the canvas remains 500×500 and each pixel represents a majority-state source tile.</p></div></section>
-    <section className="card table-card"><div className="section-head"><div><div className="eyebrow">ACTIVE BATCH RESULTS</div><h2>Benchmark results</h2></div><span className="muted">{activeRows.length} records</span></div><div className="table-wrap"><table><thead><tr><th>Backend</th><th>Grid</th><th>Workers / block</th><th>Median runtime</th><th>Speedup</th><th>Efficiency</th><th>Correctness</th><th>Checksum</th></tr></thead><tbody>{chart.map((row, index) => <tr key={`${row.backend}-${row.rows}-${index}`}><td><b className={`backend backend-${row.backend}`}>{names[row.backend]}</b></td><td>{row.rows}×{row.cols}</td><td>{row.backend === 'cuda' ? `GPU · ${row.blockSize}` : `${row.workers} ${row.backend === 'mpi' ? 'processes' : row.backend === 'openmp' ? 'threads' : 'worker'}`}</td><td className="mono">{row.runtimeMs.median.toFixed(3)} ms</td><td className="mono">{hasSerialBaseline?`${row.speedup.toFixed(2)}×`:<span className="na">N/A</span>}</td><td>{hasSerialBaseline&&row.efficiency!=null?`${(row.efficiency*100).toFixed(1)}%`:<span className="na">N/A</span>}</td><td>{correctnessFor(row)==='match'?<span className="status-ok">✓ Match</span>:correctnessFor(row)==='mismatch'?<span style={{color:'#ff8a8a'}}>✕ Mismatch</span>:<span className="na">N/A · Serial unavailable</span>}</td><td className="mono checksum">{row.checksum}</td></tr>)}</tbody></table></div></section>
-  </main>;
+  const [view, setView] = useState<View>('convert')
+  const [backends, setBackends] = useState<BackendAvailability[]>([])
+  const [image, setImage] = useState<SelectedImage>()
+  const [version, setVersion] = useState('0.1.0')
+
+  useEffect(() => {
+    void electronApi.detectBackends().then(setBackends)
+    void electronApi.version().then(setVersion)
+  }, [])
+
+  const readyCount = backends.filter((backend) => backend.available).length
+  const changeView = (next: View) => {
+    setView(next)
+    window.scrollTo({ top: 0, behavior: 'auto' })
+  }
+
+  return (
+    <ConfigProvider>
+      <Layout className="app-shell">
+        <Layout.Header className="topbar">
+          <div className="brand"><span className="brand-mark">Q</span><Typography.Text className="brand-name">parallel<span className="brand-accent">/</span>qoi</Typography.Text></div>
+          <Tabs
+            activeTab={view}
+            onChange={(value) => changeView(value as View)}
+            className="main-navigation"
+            type="line"
+            size="small"
+            headerPadding={false}
+            animation={false}
+            aria-label="Main navigation"
+          >
+            <Tabs.TabPane key="convert" title="Convert" />
+            <Tabs.TabPane key="compare" title="Compare" />
+          </Tabs>
+          <div className="topbar-meta" role="status" aria-live="polite"><Space><Tag color={readyCount ? 'green' : 'gray'}>{readyCount} backends ready</Tag></Space></div>
+        </Layout.Header>
+        <Layout.Content>{view === 'convert' ? <ConvertPage backends={backends} image={image} onImage={setImage} /> : <ComparePage backends={backends} image={image} onImage={setImage} />}</Layout.Content>
+        <Layout.Footer className="app-footer"><span>Parallel QOI Converter</span><span>v{version} · C++17 native core</span></Layout.Footer>
+      </Layout>
+    </ConfigProvider>
+  )
 }
