@@ -53,6 +53,7 @@ EncodeResult run_conversion(const std::string& input_path,
         const auto encode_start = clock_type::now();
         const std::vector<std::uint8_t> encoded = encode_qoi(image, options, &result);
         const auto encode_end = clock_type::now();
+        if (result.core_pipeline_ms <= 0.0) result.core_pipeline_ms = elapsed_ms(encode_start, encode_end);
         if (result.encode_ms <= 0.0) result.encode_ms = elapsed_ms(encode_start, encode_end);
         result.output_bytes = encoded.size();
         const std::size_t raw_bytes = image.pixels.size() * static_cast<std::size_t>(image.channels);
@@ -60,6 +61,9 @@ EncodeResult run_conversion(const std::string& input_path,
         result.throughput_mpixels = result.encode_ms <= 0.0
             ? 0.0
             : static_cast<double>(image.pixels.size()) / (result.encode_ms * 1000.0);
+        result.core_pipeline_throughput_mpixels = result.core_pipeline_ms <= 0.0
+            ? 0.0
+            : static_cast<double>(image.pixels.size()) / (result.core_pipeline_ms * 1000.0);
         const auto write_start = clock_type::now();
         write_bytes(output_path, encoded);
         result.write_ms = elapsed_ms(write_start, clock_type::now());

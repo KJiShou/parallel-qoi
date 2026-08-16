@@ -33,6 +33,7 @@ struct EncodeResult {
     double total_ms{0.0};
     double compression_ratio{0.0};
     double throughput_mpixels{0.0};
+    double core_pipeline_throughput_mpixels{0.0};
     std::size_t run_chunks{0};
     std::size_t index_chunks{0};
     std::size_t diff_chunks{0};

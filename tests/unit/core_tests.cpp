@@ -1,10 +1,12 @@
 #include "pqoi/encoder.hpp"
 #include "pqoi/metrics.hpp"
 #include "pqoi/validation.hpp"
+#include "pqoi/core/qoi_encode.hpp"
 
 #include <cassert>
 #include <cstdio>
 #include <fstream>
+#include <vector>
 
 int main() {
     pqoi::Image image;
@@ -28,6 +30,45 @@ int main() {
     }
     assert(pqoi::validate_qoi(path, image));
     std::remove(path.c_str());
+
+    const std::vector<pqoi::Block> summary_blocks = pqoi::partition_blocks(image.pixels.size(), 6U);
+    std::vector<pqoi::BlockSummary> summaries;
+    summaries.reserve(summary_blocks.size());
+    for (const pqoi::Block block : summary_blocks) summaries.push_back(pqoi::summarize_block(image.pixels, block));
+    const pqoi::BlockSummary combined = pqoi::combine_block_summaries(summaries);
+    const pqoi::BlockSummary direct = pqoi::summarize_block(image.pixels, pqoi::Block{0U, image.pixels.size()});
+    assert(combined.last_pixel == direct.last_pixel);
+    assert(combined.last_pixel_for_slot == direct.last_pixel_for_slot);
+    assert(combined.touched == direct.touched);
+
+    pqoi::QoiState initial_state;
+    initial_state.previous = pqoi::Pixel{91U, 82U, 73U, 255U};
+    initial_state.index[3U] = pqoi::Pixel{7U, 8U, 9U, 255U};
+    const auto whole_entries = pqoi::propagate_states_from(initial_state, summaries);
+    const std::size_t split = summaries.size() / 2U;
+    const std::vector<pqoi::BlockSummary> first_half(summaries.begin(), summaries.begin() + split);
+    const std::vector<pqoi::BlockSummary> second_half(summaries.begin() + split, summaries.end());
+    const auto first_entries = pqoi::propagate_states_from(initial_state, first_half);
+    assert(first_entries.size() == split);
+    pqoi::QoiState second_initial = initial_state;
+    for (const pqoi::BlockSummary& summary : first_half) second_initial = pqoi::apply_block_summary(second_initial, summary);
+    const auto second_entries = pqoi::propagate_states_from(second_initial, second_half);
+    for (std::size_t index = 0U; index < first_entries.size(); ++index) assert(whole_entries[index].previous == first_entries[index].previous);
+    for (std::size_t index = 0U; index < second_entries.size(); ++index) {
+        assert(whole_entries[split + index].previous == second_entries[index].previous);
+        assert(whole_entries[split + index].index == second_entries[index].index);
+    }
+
+    pqoi::Image assembly_image;
+    assembly_image.width = 2U;
+    assembly_image.height = 1U;
+    assembly_image.channels = 4U;
+    assembly_image.pixels.assign(2U, pqoi::Pixel{1U, 2U, 3U, 255U});
+    const std::vector<std::uint8_t> payload{10U, 20U, 30U, 40U};
+    const auto nested_assembly = pqoi::assemble_qoi(
+        assembly_image, std::vector<std::vector<std::uint8_t>>{{10U, 20U}, {30U, 40U}});
+    const auto contiguous_assembly = pqoi::assemble_qoi(assembly_image, payload);
+    assert(nested_assembly == contiguous_assembly);
 
     pqoi::Image run_image;
     run_image.width = 128U;
