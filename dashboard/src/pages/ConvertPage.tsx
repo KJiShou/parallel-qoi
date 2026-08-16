@@ -11,7 +11,7 @@ import { ValidationStatus } from '../components/ValidationStatus'
 
 type Props = { backends: BackendAvailability[]; image?: SelectedImage; onImage: (image?: SelectedImage) => void }
 
-const initialParameters: Parameters = { blocks: 8, threads: 4, segmentLength: 1024 }
+const initialParameters: Parameters = { blocks: 8, threads: 4, segmentLength: 1024, cudaThreadsPerBlock: 128 }
 
 export function ConvertPage({ backends, image, onImage }: Props) {
   const [backend, setBackend] = useState<BackendId>('serial')
@@ -35,7 +35,7 @@ export function ConvertPage({ backends, image, onImage }: Props) {
     const jobId = crypto.randomUUID()
     setActive(true); setActiveJobId(jobId); setMessage(undefined); setResponse(undefined)
     try {
-      const next = await electronApi.convertImage({ jobId, imageId: image.id, backend, blocks: parameters.blocks, threads: parameters.threads, segmentLength: parameters.segmentLength })
+      const next = await electronApi.convertImage({ jobId, imageId: image.id, backend, blocks: parameters.blocks, threads: parameters.threads, segmentLength: parameters.segmentLength, cudaThreadsPerBlock: parameters.cudaThreadsPerBlock })
       if (!cancelledJobs.current.has(jobId)) setResponse(next)
     }
     catch (error) { setMessage(error instanceof Error ? error.message : String(error)) }

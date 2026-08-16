@@ -48,6 +48,7 @@ const PERFORMANCE_PHASES = [
   { key: 'transfer_in_ms', label: 'Transfer in', color: '#b9c98e' },
   { key: 'encode_ms', label: 'Pass 2 / encode', color: '#789a22' },
   { key: 'transfer_out_ms', label: 'Transfer out', color: '#94ad4d' },
+  { key: 'compaction_ms', label: 'Compaction', color: '#748f36' },
   { key: 'merge_ms', label: 'Merge', color: '#b2bbc4' },
 ] as const
 
@@ -131,6 +132,9 @@ function getConfiguration(response: ConversionResponse) {
   if (backend === 'cuda') {
     return [
       { label: 'Pixels per segment', value: configuration.segment_length },
+      { label: 'CUDA threads per block', value: configuration.cuda_threads_per_block },
+      { label: 'GPU compute capability', value: configuration.cuda_device_architecture || 'unknown' },
+      { label: 'CUDA context reused', value: configuration.persistent_context_reused ? 'yes' : 'no' },
       { label: 'Actual image partitions', value: configuration.blocks },
     ]
   }
@@ -145,6 +149,8 @@ function ExpandedDetails({ response, serialEncode, serialBytes }: { response: Co
   const timingData: { label: string; value: string }[] = [
     ...PERFORMANCE_PHASES.map(({ key, label }) => ({ label, value: formatMs(timing[key]) })),
     { label: 'Prefix scan', value: formatMs(timing.prefix_scan_ms) },
+    { label: 'Compaction', value: formatMs(timing.compaction_ms) },
+    { label: 'CUDA core pipeline', value: formatMs(timing.core_pipeline_ms) },
   ]
   const totalData = [
     { label: 'Output write', value: formatMs(timing.write_ms) },

@@ -14,7 +14,7 @@ from typing import Any, Iterable
 
 TIMING_FIELDS = (
     "load_ms", "cuda_init_ms", "allocation_ms", "summary_ms", "propagation_ms", "transfer_in_ms", "encode_ms",
-    "transfer_out_ms", "merge_ms", "prefix_scan_ms", "write_ms", "metrics_analysis_ms", "validation_ms", "total_ms",
+    "transfer_out_ms", "merge_ms", "prefix_scan_ms", "compaction_ms", "core_pipeline_ms", "write_ms", "metrics_analysis_ms", "validation_ms", "total_ms",
 )
 DERIVED_PHASE_FIELDS = ("pass1_ms", "pass2_ms", "communication_ms")
 CHUNK_FIELDS = ("run", "index", "diff", "luma", "rgb", "rgba")
@@ -86,6 +86,7 @@ def flatten(path: Path, payload: dict[str, Any]) -> dict[str, Any]:
         "processes": configuration.get("processes"),
         "blocks": configuration.get("blocks"),
         "segment_length": configuration.get("segment_length"),
+        "cuda_threads_per_block": configuration.get("cuda_threads_per_block"),
         "output_bytes": output.get("bytes"),
         "compression_ratio": output.get("compression_ratio"),
         "throughput_mpixels": output.get("throughput_mpixels"),
@@ -108,7 +109,7 @@ def aggregate_image(group: list[dict[str, Any]]) -> dict[str, Any]:
     first = group[0]
     row = {key: first.get(key) for key in (
         "stage", "image_id", "category", "channel_mode", "backend", "configuration_id",
-        "width", "height", "pixels", "channels", "threads", "processes", "blocks", "segment_length",
+        "width", "height", "pixels", "channels", "threads", "processes", "blocks", "segment_length", "cuda_threads_per_block",
     )}
     row["measured_runs"] = len(group)
     row["all_valid"] = all(item.get("validation_passed") is True for item in group)
@@ -204,7 +205,7 @@ def main() -> int:
     write_csv(summary_dir / "full-suite-summary.csv", aggregate_suite(per_image, ("stage", "backend", "configuration_id")))
     scalability_fields = (
         "stage", "image_id", "category", "backend", "configuration_id", "pixels", "width", "height",
-        "threads", "processes", "blocks", "segment_length", "encode_ms_median", "encode_ms_mean",
+        "threads", "processes", "blocks", "segment_length", "cuda_threads_per_block", "encode_ms_median", "encode_ms_mean",
         "encode_ms_stdev", "speedup", "efficiency", "throughput_mpixels_median",
     )
     write_csv(summary_dir / "scalability-summary.csv", [

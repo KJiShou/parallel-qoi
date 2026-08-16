@@ -30,6 +30,7 @@ void print_help(const char* executable) {
               << "  --blocks <count>         OpenMP/MPI image partition count\n"
               << "  --threads <count>        OpenMP worker count\n"
               << "  --segment-length <n>     CUDA pixels per image partition\n"
+              << "  --cuda-threads-per-block <n>  CUDA launch size (32-1024, multiple of 32)\n"
               << "  --validate               decode and compare output pixels\n";
 }
 
@@ -53,6 +54,7 @@ CliArgs parse_args(const int argc, char** argv, const char* backend) {
         else if (flag == "--blocks") args.options.blocks = std::stoull(next_value(index, argc, argv, "--blocks"));
         else if (flag == "--threads") args.options.threads = std::stoull(next_value(index, argc, argv, "--threads"));
         else if (flag == "--segment-length") args.options.segment_length = std::stoull(next_value(index, argc, argv, "--segment-length"));
+        else if (flag == "--cuda-threads-per-block") args.options.cuda_threads_per_block = std::stoull(next_value(index, argc, argv, "--cuda-threads-per-block"));
         else if (flag == "--validate") args.validate = true;
         else throw std::runtime_error("unknown option: " + flag);
     }

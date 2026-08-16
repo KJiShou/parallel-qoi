@@ -41,7 +41,9 @@ For the Windows development build:
 - NVIDIA CUDA Toolkit and a compatible GPU for CUDA builds
 - Microsoft MPI runtime, SDK, headers, and libraries for MPI builds
 
-The current full preset targets CUDA Compute Capability 8.9.
+The current full preset contains native CUDA code for Compute Capabilities 8.6
+(RTX 3050 Ti) and 8.9 (RTX 4060). CUDA Toolkit 11.8 or newer is required for
+the 8.9 target.
 
 ## Build the native backends
 
@@ -69,7 +71,8 @@ All ordinary backends use the same argument contract:
 
 ```text
 --input <path> --output <path> --result <path> --preview <path>
---blocks <count> --threads <count> --segment-length <pixels> --validate
+--blocks <count> --threads <count> --segment-length <pixels>
+--cuda-threads-per-block <count> --validate
 ```
 
 Backend parameter semantics are intentionally separate so that two inputs do
@@ -79,7 +82,7 @@ not silently compete to control the same partitioning decision:
 | --- | --- | --- |
 | Serial | None | Fixed at 1 |
 | OpenMP | Threads, image partitions (`--blocks`) | Exact requested partition count, capped by pixel count |
-| CUDA | Pixels per segment (`--segment-length`) | `ceil(pixel_count / segment_length)` |
+| CUDA | Pixels per segment (`--segment-length`), CUDA launch size (`--cuda-threads-per-block`) | `ceil(pixel_count / segment_length)` |
 | MPI | Processes (`mpiexec -n`), image partitions (`--blocks`) | At least one partition per process, capped by pixel count |
 
 The dashboard reports the effective partition count returned by the native
@@ -111,7 +114,7 @@ CUDA example:
 build-full\Release\pqoi_cuda.exe `
   --input image.bmp --output cuda.qoi `
   --result cuda.json --preview cuda.bmp `
-  --segment-length 1024 --validate
+  --segment-length 1024 --cuda-threads-per-block 128 --validate
 ```
 
 MPI must be launched through `mpiexec`:
@@ -147,7 +150,9 @@ The dashboard provides:
 - **Performance charts**: Runtime, Throughput, and Phase Breakdown tabs using
   existing native result data without network requests.
 
-The Electron main process detects executable, CUDA, and MPI availability. An
+The Electron main process detects executable, CUDA, and MPI availability. It
+keeps a persistent CUDA worker so CUDA initialization and reusable buffer
+allocation are amortized across conversions. An
 unavailable backend stays visible but disabled with a reason; Serial is the
 fallback correctness baseline.
 

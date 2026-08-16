@@ -8,7 +8,7 @@ import { ParameterPanel, type Parameters } from '../components/ParameterPanel'
 
 type Props = { backends: BackendAvailability[]; image?: SelectedImage; onImage: (image?: SelectedImage) => void }
 
-const initialParameters: Parameters = { blocks: 8, threads: 4, segmentLength: 1024 }
+const initialParameters: Parameters = { blocks: 8, threads: 4, segmentLength: 1024, cudaThreadsPerBlock: 128 }
 
 const initialParametersByBackend: Record<BackendId, Parameters> = {
   serial: { ...initialParameters },
@@ -36,7 +36,7 @@ export function ComparePage({ backends, image, onImage }: Props) {
     try {
       setResponses(await electronApi.compareBackends(selected.map((backend) => {
         const parameters = parametersByBackend[backend]
-        return { imageId: image.id, backend, blocks: parameters.blocks, threads: parameters.threads, segmentLength: parameters.segmentLength }
+        return { imageId: image.id, backend, blocks: parameters.blocks, threads: parameters.threads, segmentLength: parameters.segmentLength, cudaThreadsPerBlock: parameters.cudaThreadsPerBlock }
       })))
     }
     catch (error) { setMessage(error instanceof Error ? error.message : String(error)) }
