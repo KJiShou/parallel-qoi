@@ -20,7 +20,7 @@
     "configuration": {"type": "object"},
     "timing": {
       "type": "object",
-      "required": ["load_ms", "cuda_init_ms", "allocation_ms", "summary_ms", "propagation_ms", "transfer_in_ms", "encode_ms", "transfer_out_ms", "merge_ms", "prefix_scan_ms", "write_ms", "metrics_analysis_ms", "validation_ms", "total_ms"],
+      "required": ["load_ms", "cuda_init_ms", "allocation_ms", "summary_ms", "propagation_ms", "transfer_in_ms", "encode_ms", "transfer_out_ms", "merge_ms", "prefix_scan_ms", "compaction_ms", "core_pipeline_ms", "write_ms", "metrics_analysis_ms", "validation_ms", "total_ms"],
       "additionalProperties": {"type": "number", "minimum": 0}
     },
     "output": {

@@ -6,8 +6,9 @@ pipeline. It contains:
 - input dimensions and RGB/RGBA channel mode;
 - backend configuration;
 - input decode (`load_ms`), CUDA initialization/allocation when applicable,
-  Pass 1/summary, propagation, transfer, Pass 2/encode, merge, optional prefix
-  scan, file write, validation and end-to-end timing;
+  Pass 1/summary, propagation, transfer, Pass 2/encode, prefix scan,
+  compaction, core CUDA pipeline, merge, file write, validation and end-to-end
+  timing;
 - output size, compression ratio and encode throughput;
 - RUN, INDEX, DIFF, LUMA, RGB and RGBA chunk counts;
 - inherited cross-block INDEX hits and fallback bytes avoided;

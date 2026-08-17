@@ -1,6 +1,5 @@
 #include "pqoi/encoder.hpp"
 
-#include "pqoi/core/qoi_chunks.hpp"
 #include "pqoi/core/qoi_encode.hpp"
 
 #include <cub/device/device_scan.cuh>
@@ -9,7 +8,6 @@
 #include <algorithm>
 #include <chrono>
 #include <cstdint>
-#include <cstring>
 #include <limits>
 #include <stdexcept>
 #include <string>
@@ -17,104 +15,168 @@
 
 namespace {
 
-struct DevicePixel {
-    unsigned char r;
-    unsigned char g;
-    unsigned char b;
-    unsigned char a;
-};
-
-struct DeviceState {
-    DevicePixel previous;
-    DevicePixel index[64];
-};
+using PackedPixel = std::uint32_t;
 
 struct DeviceBlock {
-    std::uint64_t begin;
-    std::uint64_t end;
+    std::uint32_t begin;
+    std::uint32_t end;
 };
 
 struct DeviceBlockSummary {
-    DevicePixel last_pixel;
-    DevicePixel last_pixel_for_slot[64];
-    unsigned char touched[64];
+    PackedPixel last_pixel;
+    PackedPixel last_pixel_for_slot[64];
+    std::uint64_t touched_mask;
+    std::uint32_t has_pixels;
 };
 
-__device__ std::size_t pixel_hash(const DevicePixel pixel) {
-    return (static_cast<std::size_t>(pixel.r) * 3U +
-            static_cast<std::size_t>(pixel.g) * 5U +
-            static_cast<std::size_t>(pixel.b) * 7U +
-            static_cast<std::size_t>(pixel.a) * 11U) & 63U;
+constexpr PackedPixel initial_previous = 0xff000000U;
+
+__host__ __device__ __forceinline__ constexpr unsigned char red(const PackedPixel pixel) {
+    return static_cast<unsigned char>(pixel & 0xffU);
 }
 
-__device__ bool same_pixel(const DevicePixel left, const DevicePixel right) {
-    return left.r == right.r && left.g == right.g && left.b == right.b && left.a == right.a;
+__host__ __device__ __forceinline__ constexpr unsigned char green(const PackedPixel pixel) {
+    return static_cast<unsigned char>((pixel >> 8U) & 0xffU);
 }
 
-__device__ void flush_run(unsigned char* output, unsigned int& cursor, unsigned int& run) {
-    while (run > 0U) {
-        const unsigned int chunk = run < 62U ? run : 62U;
-        output[cursor++] = static_cast<unsigned char>(0xc0U | (chunk - 1U));
-        run -= chunk;
+__host__ __device__ __forceinline__ constexpr unsigned char blue(const PackedPixel pixel) {
+    return static_cast<unsigned char>((pixel >> 16U) & 0xffU);
+}
+
+__host__ __device__ __forceinline__ constexpr unsigned char alpha(const PackedPixel pixel) {
+    return static_cast<unsigned char>((pixel >> 24U) & 0xffU);
+}
+
+constexpr PackedPixel pack_pixel(const pqoi::Pixel pixel) {
+    return static_cast<PackedPixel>(pixel.r) |
+           (static_cast<PackedPixel>(pixel.g) << 8U) |
+           (static_cast<PackedPixel>(pixel.b) << 16U) |
+           (static_cast<PackedPixel>(pixel.a) << 24U);
+}
+
+__device__ __forceinline__ unsigned int pixel_hash(const PackedPixel pixel) {
+    return (static_cast<unsigned int>(red(pixel)) * 3U +
+            static_cast<unsigned int>(green(pixel)) * 5U +
+            static_cast<unsigned int>(blue(pixel)) * 7U +
+            static_cast<unsigned int>(alpha(pixel)) * 11U) & 63U;
+}
+
+__device__ __forceinline__ void flush_run(unsigned char* output,
+                                          unsigned int& cursor,
+                                          unsigned int& run) {
+    if (run == 0U) return;
+    output[cursor++] = static_cast<unsigned char>(0xc0U | (run - 1U));
+    run = 0U;
+}
+
+struct SummaryCompose {
+    __host__ __device__ DeviceBlockSummary operator()(const DeviceBlockSummary& left,
+                                                       const DeviceBlockSummary& right) const {
+        if (left.has_pixels == 0U) return right;
+        if (right.has_pixels == 0U) return left;
+        DeviceBlockSummary result = left;
+        result.last_pixel = right.last_pixel;
+        result.has_pixels = 1U;
+        result.touched_mask = left.touched_mask | right.touched_mask;
+        for (unsigned int slot = 0U; slot < 64U; ++slot) {
+            if ((right.touched_mask & (std::uint64_t{1} << slot)) != 0U) {
+                result.last_pixel_for_slot[slot] = right.last_pixel_for_slot[slot];
+            }
+        }
+        return result;
     }
-}
+};
 
-__global__ void summarize_blocks_kernel(const DevicePixel* pixels,
-                                        const DeviceBlock* blocks,
-                                        DeviceBlockSummary* summaries,
-                                        const unsigned int block_count) {
-    const unsigned int block_index = blockIdx.x * blockDim.x + threadIdx.x;
-    if (block_index >= block_count) return;
+__global__ void summarize_blocks_kernel(const PackedPixel* __restrict__ pixels,
+                                        const DeviceBlock* __restrict__ blocks,
+                                        DeviceBlockSummary* __restrict__ summaries,
+                                        const unsigned int segment_count) {
+    const unsigned int segment_index = blockIdx.x * blockDim.x + threadIdx.x;
+    if (segment_index >= segment_count) return;
 
     DeviceBlockSummary summary{};
-    const DeviceBlock block = blocks[block_index];
-    for (std::uint64_t position = block.begin; position < block.end; ++position) {
-        const DevicePixel pixel = pixels[position];
-        const std::size_t slot = pixel_hash(pixel);
+    const DeviceBlock segment = blocks[segment_index];
+    for (std::uint32_t position = segment.begin; position < segment.end; ++position) {
+        const PackedPixel pixel = pixels[position];
+        const unsigned int slot = pixel_hash(pixel);
         summary.last_pixel_for_slot[slot] = pixel;
-        summary.touched[slot] = 1U;
+        summary.touched_mask |= std::uint64_t{1} << slot;
         summary.last_pixel = pixel;
+        summary.has_pixels = 1U;
     }
-    summaries[block_index] = summary;
+    summaries[segment_index] = summary;
 }
 
-__global__ void encode_blocks_kernel(const DevicePixel* pixels,
-                                     const DeviceBlock* blocks,
-                                     const DeviceState* initial_states,
-                                     unsigned char* output,
-                                     const std::size_t stride,
-                                     std::uint64_t* lengths,
-                                     const unsigned int block_count) {
-    const unsigned int block_index = blockIdx.x * blockDim.x + threadIdx.x;
-    if (block_index >= block_count) return;
+__global__ void build_entry_states_kernel(const DeviceBlockSummary* __restrict__ prefixes,
+                                          PackedPixel* __restrict__ state_previous,
+                                          PackedPixel* __restrict__ state_index,
+                                          const unsigned int segment_count) {
+    const unsigned int segment_index = blockIdx.x * blockDim.x + threadIdx.x;
+    if (segment_index >= segment_count) return;
 
-    DeviceState state = initial_states[block_index];
-    unsigned char* destination = output + static_cast<std::size_t>(block_index) * stride;
+    const DeviceBlockSummary prefix = prefixes[segment_index];
+    state_previous[segment_index] = prefix.has_pixels != 0U ? prefix.last_pixel : initial_previous;
+    for (unsigned int slot = 0U; slot < 64U; ++slot) {
+        state_index[static_cast<std::size_t>(slot) * segment_count + segment_index] =
+            (prefix.touched_mask & (std::uint64_t{1} << slot)) != 0U
+            ? prefix.last_pixel_for_slot[slot]
+            : 0U;
+    }
+}
+
+template <bool UseSharedState>
+__global__ void encode_blocks_kernel(const PackedPixel* __restrict__ pixels,
+                                     const DeviceBlock* __restrict__ blocks,
+                                     const PackedPixel* __restrict__ state_previous,
+                                     PackedPixel* __restrict__ state_index,
+                                     unsigned char* __restrict__ output,
+                                     const std::size_t stride,
+                                     std::uint64_t* __restrict__ lengths,
+                                     const unsigned int segment_count) {
+    const unsigned int segment_index = blockIdx.x * blockDim.x + threadIdx.x;
+    extern __shared__ PackedPixel shared_index[];
+    const bool active = segment_index < segment_count;
+
+    if constexpr (UseSharedState) {
+        for (unsigned int slot = 0U; slot < 64U; ++slot) {
+            shared_index[static_cast<std::size_t>(slot) * blockDim.x + threadIdx.x] = active
+                ? state_index[static_cast<std::size_t>(slot) * segment_count + segment_index]
+                : 0U;
+        }
+        __syncthreads();
+    }
+
+    if (!active) return;
+
+    PackedPixel previous = state_previous[segment_index];
+    unsigned char* destination = output + static_cast<std::size_t>(segment_index) * stride;
     unsigned int cursor = 0U;
     unsigned int run = 0U;
-    const DeviceBlock block = blocks[block_index];
-    for (std::uint64_t position = block.begin; position < block.end; ++position) {
-        const DevicePixel pixel = pixels[position];
-        if (same_pixel(pixel, state.previous)) {
+    const DeviceBlock segment = blocks[segment_index];
+    for (std::uint32_t position = segment.begin; position < segment.end; ++position) {
+        const PackedPixel pixel = pixels[position];
+        if (pixel == previous) {
             ++run;
-            state.index[pixel_hash(pixel)] = pixel;
-            if (run == 62U || position + 1U == block.end) flush_run(destination, cursor, run);
+            if (run == 62U || position + 1U == segment.end) flush_run(destination, cursor, run);
             continue;
         }
 
         flush_run(destination, cursor, run);
-        const std::size_t slot = pixel_hash(pixel);
-        if (same_pixel(state.index[slot], pixel)) {
+        const unsigned int slot = pixel_hash(pixel);
+        PackedPixel& indexed_pixel = UseSharedState
+            ? shared_index[static_cast<std::size_t>(slot) * blockDim.x + threadIdx.x]
+            : state_index[static_cast<std::size_t>(slot) * segment_count + segment_index];
+        if (indexed_pixel == pixel) {
             destination[cursor++] = static_cast<unsigned char>(slot);
         } else {
-            state.index[slot] = pixel;
-            const int dr = static_cast<int>(pixel.r) - static_cast<int>(state.previous.r);
-            const int dg = static_cast<int>(pixel.g) - static_cast<int>(state.previous.g);
-            const int db = static_cast<int>(pixel.b) - static_cast<int>(state.previous.b);
-            const int da = static_cast<int>(pixel.a) - static_cast<int>(state.previous.a);
+            indexed_pixel = pixel;
+            const int dr = static_cast<int>(red(pixel)) - static_cast<int>(red(previous));
+            const int dg = static_cast<int>(green(pixel)) - static_cast<int>(green(previous));
+            const int db = static_cast<int>(blue(pixel)) - static_cast<int>(blue(previous));
+            const int da = static_cast<int>(alpha(pixel)) - static_cast<int>(alpha(previous));
             if (da == 0 && dr > -3 && dr < 2 && dg > -3 && dg < 2 && db > -3 && db < 2) {
-                destination[cursor++] = static_cast<unsigned char>(0x40U |
-                    ((dr + 2) << 4) | ((dg + 2) << 2) | (db + 2));
+                destination[cursor++] = static_cast<unsigned char>(
+                    0x40U | ((dr + 2) << 4) | ((dg + 2) << 2) | (db + 2));
             } else if (da == 0) {
                 const int dr_dg = dr - dg;
                 const int db_dg = db - dg;
@@ -123,32 +185,36 @@ __global__ void encode_blocks_kernel(const DevicePixel* pixels,
                     destination[cursor++] = static_cast<unsigned char>(((dr_dg + 8) << 4) | (db_dg + 8));
                 } else {
                     destination[cursor++] = 0xfeU;
-                    destination[cursor++] = pixel.r; destination[cursor++] = pixel.g; destination[cursor++] = pixel.b;
+                    destination[cursor++] = red(pixel);
+                    destination[cursor++] = green(pixel);
+                    destination[cursor++] = blue(pixel);
                 }
             } else {
                 destination[cursor++] = 0xffU;
-                destination[cursor++] = pixel.r; destination[cursor++] = pixel.g;
-                destination[cursor++] = pixel.b; destination[cursor++] = pixel.a;
+                destination[cursor++] = red(pixel);
+                destination[cursor++] = green(pixel);
+                destination[cursor++] = blue(pixel);
+                destination[cursor++] = alpha(pixel);
             }
         }
-        state.previous = pixel;
+        previous = pixel;
     }
     flush_run(destination, cursor, run);
-    lengths[block_index] = static_cast<std::uint64_t>(cursor);
+    lengths[segment_index] = static_cast<std::uint64_t>(cursor);
 }
 
-__global__ void compact_blocks_kernel(const unsigned char* scratch,
+__global__ void compact_blocks_kernel(const unsigned char* __restrict__ scratch,
                                       const std::size_t stride,
-                                      const std::uint64_t* lengths,
-                                      const std::uint64_t* offsets,
-                                      unsigned char* compact_output,
-                                      const unsigned int block_count) {
-    const unsigned int block_index = blockIdx.x;
-    if (block_index >= block_count) return;
+                                      const std::uint64_t* __restrict__ lengths,
+                                      const std::uint64_t* __restrict__ offsets,
+                                      unsigned char* __restrict__ compact_output,
+                                      const unsigned int segment_count) {
+    const unsigned int segment_index = blockIdx.x;
+    if (segment_index >= segment_count) return;
 
-    const std::uint64_t length = lengths[block_index];
-    const std::uint64_t offset = offsets[block_index];
-    const unsigned char* source = scratch + static_cast<std::size_t>(block_index) * stride;
+    const std::uint64_t length = lengths[segment_index];
+    const std::uint64_t offset = offsets[segment_index];
+    const unsigned char* source = scratch + static_cast<std::size_t>(segment_index) * stride;
     for (std::uint64_t index = threadIdx.x; index < length; index += blockDim.x) {
         compact_output[offset + index] = source[index];
     }
@@ -161,28 +227,109 @@ double elapsed_ms(const clock_type::time_point start, const clock_type::time_poi
 }
 
 void check_cuda(const cudaError_t error, const char* operation) {
-    if (error != cudaSuccess) throw std::runtime_error(std::string(operation) + ": " + cudaGetErrorString(error));
-}
-
-DevicePixel to_device(const pqoi::Pixel pixel) { return DevicePixel{pixel.r, pixel.g, pixel.b, pixel.a}; }
-
-DeviceState to_device(const pqoi::QoiState& state) {
-    DeviceState result{};
-    result.previous = to_device(state.previous);
-    for (std::size_t index = 0U; index < 64U; ++index) result.index[index] = to_device(state.index[index]);
-    return result;
-}
-
-pqoi::BlockSummary to_host(const DeviceBlockSummary& summary) {
-    pqoi::BlockSummary result;
-    result.last_pixel = pqoi::Pixel{
-        summary.last_pixel.r, summary.last_pixel.g, summary.last_pixel.b, summary.last_pixel.a};
-    for (std::size_t index = 0U; index < result.last_pixel_for_slot.size(); ++index) {
-        const DevicePixel pixel = summary.last_pixel_for_slot[index];
-        result.last_pixel_for_slot[index] = pqoi::Pixel{pixel.r, pixel.g, pixel.b, pixel.a};
-        result.touched[index] = summary.touched[index] != 0U;
+    if (error != cudaSuccess) {
+        throw std::runtime_error(std::string(operation) + ": " + cudaGetErrorString(error));
     }
-    return result;
+}
+
+template <typename T>
+bool ensure_device_capacity(T*& pointer,
+                            std::size_t& capacity,
+                            const std::size_t required,
+                            const char* operation) {
+    if (required <= capacity) return false;
+    T* replacement = nullptr;
+    check_cuda(cudaMalloc(reinterpret_cast<void**>(&replacement), required * sizeof(T)), operation);
+    cudaFree(pointer);
+    pointer = replacement;
+    capacity = required;
+    return true;
+}
+
+bool ensure_byte_capacity(void*& pointer,
+                          std::size_t& capacity,
+                          const std::size_t required,
+                          const char* operation) {
+    if (required <= capacity) return false;
+    void* replacement = nullptr;
+    check_cuda(cudaMalloc(&replacement, required), operation);
+    cudaFree(pointer);
+    pointer = replacement;
+    capacity = required;
+    return true;
+}
+
+template <typename T>
+bool ensure_host_capacity(T*& pointer,
+                          std::size_t& capacity,
+                          const std::size_t required,
+                          const char* operation) {
+    if (required <= capacity) return false;
+    T* replacement = nullptr;
+    check_cuda(cudaHostAlloc(reinterpret_cast<void**>(&replacement), required * sizeof(T), cudaHostAllocDefault),
+               operation);
+    cudaFreeHost(pointer);
+    pointer = replacement;
+    capacity = required;
+    return true;
+}
+
+struct CudaContext {
+    cudaStream_t stream{};
+    PackedPixel* pixels{};
+    DeviceBlock* blocks{};
+    DeviceBlockSummary* summaries{};
+    DeviceBlockSummary* prefixes{};
+    PackedPixel* state_previous{};
+    PackedPixel* state_index{};
+    unsigned char* scratch{};
+    unsigned char* compact_output{};
+    std::uint64_t* lengths{};
+    std::uint64_t* offsets{};
+    void* scan_temporary{};
+    PackedPixel* host_pixels{};
+    DeviceBlock* host_blocks{};
+    unsigned char* host_output{};
+    std::size_t pixel_capacity{};
+    std::size_t block_capacity{};
+    std::size_t summary_capacity{};
+    std::size_t prefix_capacity{};
+    std::size_t state_previous_capacity{};
+    std::size_t state_index_capacity{};
+    std::size_t scratch_capacity{};
+    std::size_t compact_capacity{};
+    std::size_t length_capacity{};
+    std::size_t offset_capacity{};
+    std::size_t scan_capacity{};
+    std::size_t host_pixel_capacity{};
+    std::size_t host_block_capacity{};
+    std::size_t host_output_capacity{};
+    bool used{};
+
+    CudaContext() { check_cuda(cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking), "create CUDA stream"); }
+
+    ~CudaContext() {
+        cudaFree(pixels);
+        cudaFree(blocks);
+        cudaFree(summaries);
+        cudaFree(prefixes);
+        cudaFree(state_previous);
+        cudaFree(state_index);
+        cudaFree(scratch);
+        cudaFree(compact_output);
+        cudaFree(lengths);
+        cudaFree(offsets);
+        cudaFree(scan_temporary);
+        cudaFreeHost(host_pixels);
+        cudaFreeHost(host_blocks);
+        cudaFreeHost(host_output);
+        if (stream != nullptr) cudaStreamDestroy(stream);
+    }
+};
+
+CudaContext& cuda_context() {
+    static thread_local CudaContext context;
+    return context;
 }
 
 }  // namespace
@@ -197,183 +344,210 @@ std::vector<std::uint8_t> encode_cuda_qoi(const Image& image,
     check_cuda(cudaGetDeviceCount(&device_count), "cudaGetDeviceCount");
     if (device_count <= 0) throw std::runtime_error("CUDA-compatible NVIDIA GPU not detected");
     check_cuda(cudaSetDevice(0), "select CUDA device");
-    // cudaFree(nullptr) forces lazy CUDA runtime/context initialization. Keeping
-    // it in its own phase prevents first-use driver cost from looking like encode.
     check_cuda(cudaFree(nullptr), "initialize CUDA context");
-    if (metrics) metrics->cuda_init_ms = elapsed_ms(cuda_init_start, clock_type::now());
+    cudaDeviceProp device_properties{};
+    check_cuda(cudaGetDeviceProperties(&device_properties, 0), "query CUDA device properties");
+    CudaContext& context = cuda_context();
+    if (metrics) {
+        metrics->cuda_init_ms = elapsed_ms(cuda_init_start, clock_type::now());
+        metrics->cuda_device_architecture = std::to_string(device_properties.major) + "." +
+                                            std::to_string(device_properties.minor);
+        metrics->persistent_context_reused = context.used;
+        metrics->cuda_threads_per_block = options.cuda_threads_per_block;
+    }
 
     if (image.pixels.empty()) throw std::runtime_error("CUDA QOI encoding requires at least one pixel");
+    if (image.pixels.size() > static_cast<std::size_t>((std::numeric_limits<std::uint32_t>::max)())) {
+        throw std::runtime_error("CUDA QOI encoding supports at most UINT32_MAX pixels");
+    }
     if (options.segment_length == 0U) throw std::runtime_error("CUDA segment length must be greater than zero");
-    // CUDA uses pixels-per-segment as its single partitioning control. Keeping
-    // --blocks out of this calculation avoids two parameters silently competing
-    // to determine the same image partition count.
-    const std::size_t requested_blocks =
-        1U + (image.pixels.size() - 1U) / options.segment_length;
-    const std::vector<Block> blocks = partition_blocks(image.pixels.size(), requested_blocks);
-    if (metrics) metrics->blocks = blocks.size();
-    if (blocks.empty()) throw std::runtime_error("CUDA QOI encoding requires at least one pixel block");
-    if (blocks.size() > static_cast<std::size_t>((std::numeric_limits<unsigned int>::max)())) {
-        throw std::runtime_error("CUDA QOI block count exceeds the kernel index range");
+    if (options.cuda_threads_per_block < 32U || options.cuda_threads_per_block % 32U != 0U ||
+        options.cuda_threads_per_block > static_cast<std::size_t>(device_properties.maxThreadsPerBlock)) {
+        throw std::runtime_error("CUDA threads per block must be a multiple of 32 within the device limit");
     }
 
-    std::vector<DevicePixel> host_pixels(image.pixels.size());
-    for (std::size_t index = 0U; index < image.pixels.size(); ++index) host_pixels[index] = to_device(image.pixels[index]);
-    std::vector<DeviceBlock> host_blocks(blocks.size());
-    std::size_t max_block_pixels = 0U;
-    for (std::size_t index = 0U; index < blocks.size(); ++index) {
-        host_blocks[index] = DeviceBlock{blocks[index].begin, blocks[index].end};
-        max_block_pixels = std::max(max_block_pixels, blocks[index].end - blocks[index].begin);
+    const std::size_t requested_segments =
+        1U + (image.pixels.size() - 1U) / options.segment_length;
+    const std::vector<Block> segments = partition_blocks(image.pixels.size(), requested_segments);
+    if (metrics) metrics->blocks = segments.size();
+    if (segments.empty()) throw std::runtime_error("CUDA QOI encoding requires at least one segment");
+    if (segments.size() > static_cast<std::size_t>((std::numeric_limits<unsigned int>::max)())) {
+        throw std::runtime_error("CUDA QOI segment count exceeds the kernel index range");
     }
+
+    std::size_t max_segment_pixels = 0U;
+
     constexpr std::size_t maximum_bytes_per_pixel = 5U;
-    constexpr std::size_t block_capacity_margin = 64U;
-    if (max_block_pixels > ((std::numeric_limits<std::size_t>::max)() - block_capacity_margin) /
-                               maximum_bytes_per_pixel) {
-        throw std::runtime_error("CUDA QOI block capacity overflows size_t");
+    constexpr std::size_t segment_capacity_margin = 64U;
+    for (const Block segment : segments) {
+        max_segment_pixels = std::max(max_segment_pixels, segment.end - segment.begin);
     }
-    const std::size_t stride =
-        maximum_bytes_per_pixel * max_block_pixels + block_capacity_margin;
-    if (blocks.size() > (std::numeric_limits<std::size_t>::max)() / stride) {
+    if (max_segment_pixels > ((std::numeric_limits<std::size_t>::max)() - segment_capacity_margin) /
+                                 maximum_bytes_per_pixel) {
+        throw std::runtime_error("CUDA QOI segment capacity overflows size_t");
+    }
+    const std::size_t stride = maximum_bytes_per_pixel * max_segment_pixels + segment_capacity_margin;
+    if (segments.size() > (std::numeric_limits<std::size_t>::max)() / stride) {
         throw std::runtime_error("CUDA QOI scratch allocation overflows size_t");
     }
-    const std::size_t output_size = stride * blocks.size();
-    const unsigned int block_count = static_cast<unsigned int>(blocks.size());
-    constexpr unsigned int threads_per_block = 128U;
-    const unsigned int grid = (block_count + threads_per_block - 1U) / threads_per_block;
-
-    DevicePixel* device_pixels = nullptr;
-    DeviceBlock* device_blocks = nullptr;
-    DeviceBlockSummary* device_summaries = nullptr;
-    DeviceState* device_states = nullptr;
-    unsigned char* device_scratch = nullptr;
-    unsigned char* device_compact_output = nullptr;
-    std::uint64_t* device_lengths = nullptr;
-    std::uint64_t* device_offsets = nullptr;
-    void* device_scan_temporary = nullptr;
-    const auto release_device_memory = [&]() noexcept {
-        cudaFree(device_pixels);
-        cudaFree(device_blocks);
-        cudaFree(device_summaries);
-        cudaFree(device_states);
-        cudaFree(device_scratch);
-        cudaFree(device_compact_output);
-        cudaFree(device_lengths);
-        cudaFree(device_offsets);
-        cudaFree(device_scan_temporary);
-    };
-    try {
-        const auto allocation_start = clock_type::now();
-        check_cuda(cudaMalloc(reinterpret_cast<void**>(&device_pixels), host_pixels.size() * sizeof(DevicePixel)), "cudaMalloc pixels");
-        check_cuda(cudaMalloc(reinterpret_cast<void**>(&device_blocks), host_blocks.size() * sizeof(DeviceBlock)), "cudaMalloc blocks");
-        check_cuda(cudaMalloc(reinterpret_cast<void**>(&device_summaries), blocks.size() * sizeof(DeviceBlockSummary)), "cudaMalloc summaries");
-        check_cuda(cudaMalloc(reinterpret_cast<void**>(&device_states), blocks.size() * sizeof(DeviceState)), "cudaMalloc states");
-        check_cuda(cudaMalloc(reinterpret_cast<void**>(&device_scratch), output_size), "cudaMalloc scratch output");
-        check_cuda(cudaMalloc(reinterpret_cast<void**>(&device_lengths), blocks.size() * sizeof(std::uint64_t)), "cudaMalloc lengths");
-        check_cuda(cudaMalloc(reinterpret_cast<void**>(&device_offsets), blocks.size() * sizeof(std::uint64_t)), "cudaMalloc offsets");
-        std::size_t scan_temporary_bytes = 0U;
-        check_cuda(cub::DeviceScan::ExclusiveSum(
-                       nullptr, scan_temporary_bytes, device_lengths, device_offsets, block_count),
-                   "query CUB exclusive scan storage");
-        check_cuda(cudaMalloc(&device_scan_temporary, scan_temporary_bytes), "cudaMalloc CUB scan storage");
-        if (metrics) metrics->allocation_ms = elapsed_ms(allocation_start, clock_type::now());
-
-        const auto copy_start = clock_type::now();
-        check_cuda(cudaMemcpy(device_pixels, host_pixels.data(), host_pixels.size() * sizeof(DevicePixel), cudaMemcpyHostToDevice), "copy pixels");
-        check_cuda(cudaMemcpy(device_blocks, host_blocks.data(), host_blocks.size() * sizeof(DeviceBlock), cudaMemcpyHostToDevice), "copy blocks");
-        if (metrics) metrics->transfer_in_ms = elapsed_ms(copy_start, clock_type::now());
-
-        const auto summary_start = clock_type::now();
-        summarize_blocks_kernel<<<grid, threads_per_block>>>(
-            device_pixels, device_blocks, device_summaries, block_count);
-        check_cuda(cudaGetLastError(), "launch CUDA summary kernel");
-        check_cuda(cudaDeviceSynchronize(), "synchronize CUDA summary kernel");
-        std::vector<DeviceBlockSummary> host_device_summaries(blocks.size());
-        check_cuda(cudaMemcpy(host_device_summaries.data(), device_summaries,
-                              host_device_summaries.size() * sizeof(DeviceBlockSummary),
-                              cudaMemcpyDeviceToHost),
-                   "copy CUDA block summaries");
-        if (metrics) metrics->summary_ms = elapsed_ms(summary_start, clock_type::now());
-
-        std::vector<BlockSummary> summaries;
-        summaries.reserve(blocks.size());
-        for (const DeviceBlockSummary& summary : host_device_summaries) {
-            summaries.push_back(to_host(summary));
-        }
-        const auto propagation_start = clock_type::now();
-        const std::vector<QoiState> states = propagate_states(summaries);
-        if (metrics) metrics->propagation_ms = elapsed_ms(propagation_start, clock_type::now());
-        std::vector<DeviceState> host_states(states.size());
-        for (std::size_t index = 0U; index < states.size(); ++index) {
-            host_states[index] = to_device(states[index]);
-        }
-        const auto state_copy_start = clock_type::now();
-        check_cuda(cudaMemcpy(device_states, host_states.data(), host_states.size() * sizeof(DeviceState),
-                              cudaMemcpyHostToDevice),
-                   "copy propagated states");
-        if (metrics) metrics->transfer_in_ms += elapsed_ms(state_copy_start, clock_type::now());
-
-        const auto encode_start = clock_type::now();
-        encode_blocks_kernel<<<grid, threads_per_block>>>(device_pixels, device_blocks, device_states,
-                                                          device_scratch, stride, device_lengths,
-                                                          block_count);
-        check_cuda(cudaGetLastError(), "launch CUDA QOI kernel");
-        check_cuda(cudaDeviceSynchronize(), "synchronize CUDA QOI kernel");
-        if (metrics) metrics->encode_ms = elapsed_ms(encode_start, clock_type::now());
-
-        const auto prefix_scan_start = clock_type::now();
-        check_cuda(cub::DeviceScan::ExclusiveSum(
-                       device_scan_temporary, scan_temporary_bytes,
-                       device_lengths, device_offsets, block_count),
-                   "run CUB exclusive scan");
-        check_cuda(cudaDeviceSynchronize(), "synchronize CUB exclusive scan");
-        std::uint64_t final_offset = 0U;
-        std::uint64_t final_length = 0U;
-        check_cuda(cudaMemcpy(&final_offset, device_offsets + blocks.size() - 1U,
-                              sizeof(final_offset), cudaMemcpyDeviceToHost),
-                   "copy final compact offset");
-        check_cuda(cudaMemcpy(&final_length, device_lengths + blocks.size() - 1U,
-                              sizeof(final_length), cudaMemcpyDeviceToHost),
-                   "copy final compact length");
-        if (final_offset > (std::numeric_limits<std::uint64_t>::max)() - final_length) {
-            throw std::runtime_error("CUDA compact output length overflows uint64_t");
-        }
-        const std::uint64_t compact_size_u64 = final_offset + final_length;
-        if (compact_size_u64 > static_cast<std::uint64_t>((std::numeric_limits<std::size_t>::max)())) {
-            throw std::runtime_error("CUDA compact output length exceeds host size_t");
-        }
-        const std::size_t compact_size = static_cast<std::size_t>(compact_size_u64);
-        if (metrics) metrics->prefix_scan_ms = elapsed_ms(prefix_scan_start, clock_type::now());
-
-        const auto compact_allocation_start = clock_type::now();
-        check_cuda(cudaMalloc(reinterpret_cast<void**>(&device_compact_output), compact_size),
-                   "cudaMalloc compact output");
-        if (metrics) metrics->allocation_ms += elapsed_ms(compact_allocation_start, clock_type::now());
-
-        const auto compaction_start = clock_type::now();
-        compact_blocks_kernel<<<block_count, threads_per_block>>>(
-            device_scratch, stride, device_lengths, device_offsets,
-            device_compact_output, block_count);
-        check_cuda(cudaGetLastError(), "launch CUDA compaction kernel");
-        check_cuda(cudaDeviceSynchronize(), "synchronize CUDA compaction kernel");
-        const double compaction_ms = elapsed_ms(compaction_start, clock_type::now());
-
-        std::vector<unsigned char> host_output(compact_size);
-        const auto copy_out_start = clock_type::now();
-        check_cuda(cudaMemcpy(host_output.data(), device_compact_output, compact_size,
-                              cudaMemcpyDeviceToHost),
-                   "copy compact encoded payload");
-        if (metrics) metrics->transfer_out_ms = elapsed_ms(copy_out_start, clock_type::now());
-
-        const auto merge_start = clock_type::now();
-        std::vector<std::vector<std::uint8_t>> block_bytes;
-        block_bytes.push_back(std::move(host_output));
-        const std::vector<std::uint8_t> result = assemble_qoi(image, block_bytes);
-        if (metrics) metrics->merge_ms = compaction_ms + elapsed_ms(merge_start, clock_type::now());
-        release_device_memory();
-        return result;
-    } catch (...) {
-        release_device_memory();
-        throw;
+    const std::size_t scratch_size = stride * segments.size();
+    const unsigned int segment_count = static_cast<unsigned int>(segments.size());
+    const unsigned int threads_per_block = static_cast<unsigned int>(options.cuda_threads_per_block);
+    const unsigned int grid = (segment_count + threads_per_block - 1U) / threads_per_block;
+    constexpr std::size_t qoi_index_slots = 64U;
+    if (segments.size() > (std::numeric_limits<std::size_t>::max)() / qoi_index_slots) {
+        throw std::runtime_error("CUDA QOI state-index allocation overflows size_t");
     }
+    const std::size_t state_index_count = qoi_index_slots * segments.size();
+    const bool use_shared_state = options.segment_length >= 256U &&
+                                  (threads_per_block == 64U || threads_per_block == 128U);
+    const std::size_t shared_state_bytes = use_shared_state
+        ? qoi_index_slots * threads_per_block * sizeof(PackedPixel)
+        : 0U;
+    if (shared_state_bytes > static_cast<std::size_t>(device_properties.sharedMemPerBlock)) {
+        throw std::runtime_error("CUDA shared QOI state exceeds the device per-block shared-memory limit");
+    }
+
+    const auto allocation_start = clock_type::now();
+    ensure_host_capacity(context.host_pixels, context.host_pixel_capacity, image.pixels.size(),
+                         "allocate pinned host pixels");
+    ensure_host_capacity(context.host_blocks, context.host_block_capacity, segments.size(),
+                         "allocate pinned host segments");
+    ensure_host_capacity(context.host_output, context.host_output_capacity, scratch_size,
+                         "allocate pinned host output");
+    ensure_device_capacity(context.pixels, context.pixel_capacity, image.pixels.size(), "allocate CUDA pixels");
+    ensure_device_capacity(context.blocks, context.block_capacity, segments.size(), "allocate CUDA segments");
+    ensure_device_capacity(context.summaries, context.summary_capacity, segments.size(), "allocate CUDA summaries");
+    ensure_device_capacity(context.prefixes, context.prefix_capacity, segments.size(), "allocate CUDA prefixes");
+    ensure_device_capacity(context.state_previous, context.state_previous_capacity, segments.size(),
+                           "allocate CUDA previous-pixel states");
+    ensure_device_capacity(context.state_index, context.state_index_capacity, state_index_count,
+                           "allocate CUDA QOI index states");
+    ensure_device_capacity(context.lengths, context.length_capacity, segments.size(), "allocate CUDA lengths");
+    ensure_device_capacity(context.offsets, context.offset_capacity, segments.size(), "allocate CUDA offsets");
+    ensure_device_capacity(context.scratch, context.scratch_capacity, scratch_size, "allocate CUDA scratch output");
+    ensure_device_capacity(context.compact_output, context.compact_capacity, scratch_size,
+                           "allocate CUDA compact output");
+
+    std::size_t summary_scan_bytes = 0U;
+    const DeviceBlockSummary identity{};
+    check_cuda(cub::DeviceScan::ExclusiveScan(
+                   nullptr, summary_scan_bytes, context.summaries, context.prefixes,
+                   SummaryCompose{}, identity, segment_count, context.stream),
+               "query CUB summary scan storage");
+    std::size_t length_scan_bytes = 0U;
+    check_cuda(cub::DeviceScan::ExclusiveSum(
+                   nullptr, length_scan_bytes, context.lengths, context.offsets,
+                   segment_count, context.stream),
+               "query CUB length scan storage");
+    ensure_byte_capacity(context.scan_temporary, context.scan_capacity,
+                         std::max(summary_scan_bytes, length_scan_bytes),
+                         "allocate CUB scan storage");
+    if (metrics) metrics->allocation_ms = elapsed_ms(allocation_start, clock_type::now());
+
+    for (std::size_t index = 0U; index < image.pixels.size(); ++index) {
+        context.host_pixels[index] = pack_pixel(image.pixels[index]);
+    }
+    for (std::size_t index = 0U; index < segments.size(); ++index) {
+        context.host_blocks[index] = DeviceBlock{
+            static_cast<std::uint32_t>(segments[index].begin),
+            static_cast<std::uint32_t>(segments[index].end)};
+    }
+
+    const auto pipeline_start = clock_type::now();
+    const auto transfer_start = clock_type::now();
+    check_cuda(cudaMemcpyAsync(context.pixels, context.host_pixels,
+                               image.pixels.size() * sizeof(PackedPixel), cudaMemcpyHostToDevice,
+                               context.stream), "copy packed pixels");
+    check_cuda(cudaMemcpyAsync(context.blocks, context.host_blocks,
+                               segments.size() * sizeof(DeviceBlock), cudaMemcpyHostToDevice,
+                               context.stream), "copy segment ranges");
+    check_cuda(cudaStreamSynchronize(context.stream), "synchronize CUDA input transfers");
+    if (metrics) metrics->transfer_in_ms = elapsed_ms(transfer_start, clock_type::now());
+
+    const auto summary_start = clock_type::now();
+    summarize_blocks_kernel<<<grid, threads_per_block, 0U, context.stream>>>(
+        context.pixels, context.blocks, context.summaries, segment_count);
+    check_cuda(cudaGetLastError(), "launch CUDA summary kernel");
+    check_cuda(cudaStreamSynchronize(context.stream), "synchronize CUDA summary kernel");
+    if (metrics) metrics->summary_ms = elapsed_ms(summary_start, clock_type::now());
+
+    const auto propagation_start = clock_type::now();
+    check_cuda(cub::DeviceScan::ExclusiveScan(
+                   context.scan_temporary, summary_scan_bytes,
+                   context.summaries, context.prefixes, SummaryCompose{}, identity,
+                   segment_count, context.stream),
+               "run CUB summary scan");
+    build_entry_states_kernel<<<grid, threads_per_block, 0U, context.stream>>>(
+        context.prefixes, context.state_previous, context.state_index, segment_count);
+    check_cuda(cudaGetLastError(), "launch CUDA entry-state kernel");
+    check_cuda(cudaStreamSynchronize(context.stream), "synchronize CUDA state propagation");
+    if (metrics) metrics->propagation_ms = elapsed_ms(propagation_start, clock_type::now());
+
+    const auto encode_start = clock_type::now();
+    if (use_shared_state) {
+        encode_blocks_kernel<true><<<grid, threads_per_block, shared_state_bytes, context.stream>>>(
+            context.pixels, context.blocks, context.state_previous, context.state_index,
+            context.scratch, stride, context.lengths, segment_count);
+    } else {
+        encode_blocks_kernel<false><<<grid, threads_per_block, 0U, context.stream>>>(
+            context.pixels, context.blocks, context.state_previous, context.state_index,
+            context.scratch, stride, context.lengths, segment_count);
+    }
+    check_cuda(cudaGetLastError(), "launch CUDA QOI kernel");
+    check_cuda(cudaStreamSynchronize(context.stream), "synchronize CUDA QOI kernel");
+    if (metrics) metrics->encode_ms = elapsed_ms(encode_start, clock_type::now());
+
+    const auto prefix_scan_start = clock_type::now();
+    check_cuda(cub::DeviceScan::ExclusiveSum(
+                   context.scan_temporary, length_scan_bytes,
+                   context.lengths, context.offsets, segment_count, context.stream),
+               "run CUB encoded-length scan");
+    std::uint64_t final_offset = 0U;
+    std::uint64_t final_length = 0U;
+    check_cuda(cudaMemcpyAsync(&final_offset, context.offsets + segments.size() - 1U,
+                               sizeof(final_offset), cudaMemcpyDeviceToHost, context.stream),
+               "copy final compact offset");
+    check_cuda(cudaMemcpyAsync(&final_length, context.lengths + segments.size() - 1U,
+                               sizeof(final_length), cudaMemcpyDeviceToHost, context.stream),
+               "copy final compact length");
+    check_cuda(cudaStreamSynchronize(context.stream), "synchronize CUB encoded-length scan");
+    if (metrics) metrics->prefix_scan_ms = elapsed_ms(prefix_scan_start, clock_type::now());
+
+    if (final_offset > (std::numeric_limits<std::uint64_t>::max)() - final_length) {
+        throw std::runtime_error("CUDA compact output length overflows uint64_t");
+    }
+    const std::uint64_t compact_size_u64 = final_offset + final_length;
+    if (compact_size_u64 > static_cast<std::uint64_t>((std::numeric_limits<std::size_t>::max)())) {
+        throw std::runtime_error("CUDA compact output length exceeds host size_t");
+    }
+    const std::size_t compact_size = static_cast<std::size_t>(compact_size_u64);
+
+    const auto compaction_start = clock_type::now();
+    compact_blocks_kernel<<<segment_count, threads_per_block, 0U, context.stream>>>(
+        context.scratch, stride, context.lengths, context.offsets,
+        context.compact_output, segment_count);
+    check_cuda(cudaGetLastError(), "launch CUDA compaction kernel");
+    check_cuda(cudaStreamSynchronize(context.stream), "synchronize CUDA compaction kernel");
+    if (metrics) metrics->compaction_ms = elapsed_ms(compaction_start, clock_type::now());
+
+    const auto transfer_out_start = clock_type::now();
+    check_cuda(cudaMemcpyAsync(context.host_output, context.compact_output, compact_size,
+                               cudaMemcpyDeviceToHost, context.stream),
+               "copy compact encoded payload");
+    check_cuda(cudaStreamSynchronize(context.stream), "synchronize compact payload transfer");
+    if (metrics) {
+        metrics->transfer_out_ms = elapsed_ms(transfer_out_start, clock_type::now());
+        metrics->core_pipeline_ms = elapsed_ms(pipeline_start, clock_type::now());
+    }
+
+    const auto merge_start = clock_type::now();
+    std::vector<std::vector<std::uint8_t>> segment_bytes(1U);
+    segment_bytes.front().assign(context.host_output, context.host_output + compact_size);
+    std::vector<std::uint8_t> result = assemble_qoi(image, segment_bytes);
+    if (metrics) metrics->merge_ms = elapsed_ms(merge_start, clock_type::now());
+    context.used = true;
+    return result;
 }
 
 }  // namespace pqoi

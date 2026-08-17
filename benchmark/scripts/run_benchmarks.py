@@ -86,10 +86,15 @@ def build_configurations(config: dict[str, Any], stage: str) -> list[dict[str, A
     for threads in grid.get("openmp_threads", [1, 2, 4, 8, 16]):
         for blocks in block_values(threads, multipliers):
             configurations.append({"backend": "openmp", **defaults, "threads": threads, "blocks": blocks})
-    for segment_length in grid.get("cuda_segment_lengths", [256, 512, 1024, 2048, 4096]):
-        cuda_configuration = {"backend": "cuda", **defaults, "segment_length": segment_length}
-        cuda_configuration.pop("blocks", None)
-        configurations.append(cuda_configuration)
+    for segment_length in grid.get("cuda_segment_lengths", [128, 256, 512, 1024, 2048]):
+        for threads_per_block in grid.get("cuda_threads_per_block", [64, 128, 256]):
+            cuda_configuration = {
+                "backend": "cuda", **defaults,
+                "segment_length": segment_length,
+                "cuda_threads_per_block": threads_per_block,
+            }
+            cuda_configuration.pop("blocks", None)
+            configurations.append(cuda_configuration)
     for processes in grid.get("mpi_processes", [1, 2, 4, 8]):
         for blocks in block_values(processes, multipliers):
             configurations.append({"backend": "mpi", **defaults, "processes": processes, "blocks": blocks})
@@ -103,7 +108,7 @@ def configuration_id(configuration: dict[str, Any]) -> str:
         "serial": ("blocks",),
         "control": ("blocks",),
         "openmp": ("threads", "blocks"),
-        "cuda": ("segment_length",),
+        "cuda": ("segment_length", "cuda_threads_per_block"),
         "mpi": ("processes", "blocks"),
     }.get(backend, ("threads", "processes", "blocks", "segment_length"))
     for key in relevant:
@@ -163,6 +168,8 @@ def build_command(executable: Path, image: Path, output: Path, result: Path, pre
         "--segment-length", str(configuration.get("segment_length", 1024)),
         "--validate",
     ]
+    if backend == "cuda":
+        native_command.extend(["--cuda-threads-per-block", str(configuration.get("cuda_threads_per_block", 128))])
     if backend != "cuda":
         native_command.extend(["--blocks", str(configuration.get("blocks", 1))])
     if generate_preview:

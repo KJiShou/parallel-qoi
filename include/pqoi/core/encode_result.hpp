@@ -25,6 +25,8 @@ struct EncodeResult {
     double transfer_out_ms{0.0};
     double merge_ms{0.0};
     double prefix_scan_ms{0.0};
+    double compaction_ms{0.0};
+    double core_pipeline_ms{0.0};
     double write_ms{0.0};
     double metrics_analysis_ms{0.0};
     double validation_ms{0.0};
@@ -42,6 +44,9 @@ struct EncodeResult {
     std::size_t blocks{1};
     std::size_t threads{1};
     std::size_t segment_length{1024};
+    std::size_t cuda_threads_per_block{128};
+    std::string cuda_device_architecture;
+    bool persistent_context_reused{false};
     bool validation_passed{false};
     bool decoder_accepted{false};
     bool dimensions_match{false};

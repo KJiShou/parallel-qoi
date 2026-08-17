@@ -1,7 +1,7 @@
 import { Form, InputNumber, Space, Typography } from '@arco-design/web-react'
 import type { BackendId } from '../../electron/services/types'
 
-export type Parameters = { blocks: number; threads: number; segmentLength: number }
+export type Parameters = { blocks: number; threads: number; segmentLength: number; cudaThreadsPerBlock: number }
 
 type Props = {
   backend: BackendId
@@ -23,6 +23,7 @@ export function ParameterPanel({ backend, value, onChange, showHeading = true }:
       {backend === 'openmp' && <Form.Item label="Threads"><InputNumber min={1} precision={0} value={value.threads} onChange={(next) => set('threads', next)} /></Form.Item>}
       {backend === 'openmp' && <Form.Item label="Image partitions"><InputNumber min={1} precision={0} value={value.blocks} onChange={(next) => set('blocks', next)} /></Form.Item>}
       {backend === 'cuda' && <Form.Item label="Pixels per segment"><InputNumber min={1} precision={0} value={value.segmentLength} onChange={(next) => set('segmentLength', next)} /></Form.Item>}
+      {backend === 'cuda' && <Form.Item label="CUDA threads per block"><InputNumber min={32} max={1024} step={32} precision={0} value={value.cudaThreadsPerBlock} onChange={(next) => set('cudaThreadsPerBlock', next)} /></Form.Item>}
       {backend === 'cuda' && <Typography.Text type="secondary">The encoder derives the actual image partition count from the image size.</Typography.Text>}
       {backend === 'mpi' && <Form.Item label="Process count"><InputNumber min={1} precision={0} value={value.threads} onChange={setMpiProcesses} /></Form.Item>}
       {backend === 'mpi' && <Form.Item label="Image partitions"><InputNumber min={value.threads} precision={0} value={value.blocks} onChange={(next) => set('blocks', Math.max(value.threads, next ?? value.threads))} /></Form.Item>}

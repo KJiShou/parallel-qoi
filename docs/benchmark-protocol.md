@@ -8,7 +8,8 @@ The automated protocol follows the three-stage evaluation plan in Chapter 5.
    conformance archive plus RGB/RGBA, transparency, small-image and block-boundary cases.
 2. **Tuning:** use the published deterministic 154-image stratified manifest to
    sweep OpenMP threads/image partitions,
-   CUDA pixels per segment, and MPI processes/image partitions.
+   CUDA pixels per segment and CUDA threads per block, and MPI
+   processes/image partitions.
 3. **Full:** run Serial, one-pass control and the selected best OpenMP, CUDA and
    MPI configurations over every image in the downloaded archive (2,848 images
    in the current official suite; the fetcher records the exact archive hash).
@@ -32,12 +33,13 @@ latency and excludes Electron, result JSON writing and the separately reported
 CUDA-only setup phases and are zero for the other backends. Summary corresponds
 to Pass 1, propagation is state propagation, and encode is Pass 2. OpenMP uses
 the configured worker count with static scheduling for both Pass 1 and Pass 2;
-its ordered state propagation remains sequential. For CUDA,
-`summary_ms` includes the GPU summary kernel and the small summary readback used
-for host state propagation; `prefix_scan_ms` measures the device exclusive scan,
-and `merge_ms` includes device compaction plus final host QOI assembly. CUDA uses
-pixels per segment as its single partitioning control and reports the derived
-image partition count. For MPI,
+its ordered state propagation remains sequential. For CUDA, `summary_ms`
+measures the GPU summary kernel, while `propagation_ms` measures the device
+exclusive summary scan and entry-state kernel. `prefix_scan_ms` measures the
+encoded-length scan, `compaction_ms` measures device output compaction, and
+`merge_ms` measures final host QOI assembly. `core_pipeline_ms` covers transfers,
+summary, propagation, encoding, scan and compaction. CUDA reports both pixels per
+segment, CUDA threads per block and the derived image partition count. For MPI,
 `summary_ms` includes the maximum rank-local summary time plus the summary
 gather to rank 0; `transfer_in_ms` includes pixel and propagated-state scatter.
 CUDA host/device transfers and the final MPI encoded-payload gather are reported
