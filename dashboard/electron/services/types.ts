@@ -40,6 +40,7 @@ export type NativeResult = {
     cuda_threads_per_block: number
     cuda_device_architecture: string
     persistent_context_reused: boolean
+    input_cache_reused: boolean
   }
   timing: {
     load_ms: number
@@ -59,15 +60,24 @@ export type NativeResult = {
     validation_ms: number
     total_ms: number
   }
-  output: { path: string; bytes: number; compression_ratio: number; throughput_mpixels: number }
+  output: { path: string; bytes: number; compression_ratio: number; throughput_mpixels: number; core_pipeline_throughput_mpixels: number }
   chunks: { run: number; index: number; diff: number; luma: number; rgb: number; rgba: number }
   cross_block: { inherited_index_hits: number; fallback_bytes_avoided: number }
   preview_path: string
   validation: { passed: boolean; pixel_match: boolean; sha256_match: boolean }
 }
 
+export type OrchestrationMetrics = {
+  request_wall_ms: number
+  worker_startup_ms: number
+  worker_reused: boolean
+  input_cache_reused: boolean
+  fallback_used: boolean
+}
+
 export type ConversionResponse = {
   jobId: string
   result: NativeResult
+  orchestration: OrchestrationMetrics
   previewDataUrl?: string
 }

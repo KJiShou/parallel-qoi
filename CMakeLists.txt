@@ -99,5 +99,13 @@ if (BUILD_TESTING)
                     -SerialExe "$<TARGET_FILE:pqoi_serial>"
                     -Mpiexec "${MPIEXEC_EXECUTABLE}"
                     -WorkingDirectory "${CMAKE_CURRENT_BINARY_DIR}/mpi-smoke")
+        add_test(
+            NAME pqoi_mpi_server_smoke
+            COMMAND powershell -NoProfile -ExecutionPolicy Bypass
+                    -File "${CMAKE_CURRENT_SOURCE_DIR}/tests/mpi_server_smoke.ps1"
+                    -MpiExe "$<TARGET_FILE:pqoi_mpi>"
+                    -SerialExe "$<TARGET_FILE:pqoi_serial>"
+                    -Mpiexec "${MPIEXEC_EXECUTABLE}"
+                    -WorkingDirectory "${CMAKE_CURRENT_BINARY_DIR}/mpi-server-smoke")
     endif()
 endif()

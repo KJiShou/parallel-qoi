@@ -85,7 +85,8 @@ std::string result_json(const EncodeResult& result) {
          << result.threads << ", \"segment_length\": " << result.segment_length
          << ", \"cuda_threads_per_block\": " << result.cuda_threads_per_block
          << ", \"cuda_device_architecture\": \"" << escape_json(result.cuda_device_architecture)
-         << "\", \"persistent_context_reused\": " << (result.persistent_context_reused ? "true" : "false") << "},\n"
+         << "\", \"persistent_context_reused\": " << (result.persistent_context_reused ? "true" : "false")
+         << ", \"input_cache_reused\": " << (result.input_cache_reused ? "true" : "false") << "},\n"
          << "  \"timing\": {\"load_ms\": " << result.load_ms
          << ", \"cuda_init_ms\": " << result.cuda_init_ms
          << ", \"allocation_ms\": " << result.allocation_ms

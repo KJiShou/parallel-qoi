@@ -10,6 +10,15 @@
 namespace pqoi {
 
 struct BlockEncodingStats {
+    // Chunk counters are collected while the encoder is already walking the
+    // pixels.  MPI can gather these fixed-size counters with the payload
+    // lengths and avoid a second root-side scan of the assembled QOI stream.
+    std::size_t run_chunks{0};
+    std::size_t index_chunks{0};
+    std::size_t diff_chunks{0};
+    std::size_t luma_chunks{0};
+    std::size_t rgb_chunks{0};
+    std::size_t rgba_chunks{0};
     std::size_t inherited_index_hits{0};
     std::size_t fallback_bytes_avoided{0};
 };
@@ -33,6 +42,15 @@ std::vector<std::uint8_t> assemble_qoi(const Image& image,
                                        const std::vector<std::vector<std::uint8_t>>& block_bytes);
 std::vector<std::uint8_t> assemble_qoi(const Image& image,
                                        const std::vector<std::uint8_t>& payload);
+
+// Allocates a complete QOI buffer and writes its header/end marker, leaving
+// the payload region ready for a direct MPI_Gatherv receive.  The payload
+// offset is stable for the QOI format and is intentionally exposed so callers
+// do not need a temporary gathered-payload vector.
+constexpr std::size_t qoi_header_bytes = 14U;
+constexpr std::size_t qoi_end_marker_bytes = 8U;
+std::vector<std::uint8_t> prepare_qoi_buffer(const Image& image,
+                                             std::size_t payload_bytes);
 
 // Backend-owned block scheduling. These functions keep the algorithm-specific
 // work in src/backends while qoi_codec.cpp owns shared QOI chunk primitives.

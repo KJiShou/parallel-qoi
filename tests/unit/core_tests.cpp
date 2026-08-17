@@ -4,6 +4,7 @@
 #include "pqoi/core/qoi_encode.hpp"
 
 #include <cassert>
+#include <algorithm>
 #include <cstdio>
 #include <fstream>
 #include <vector>
@@ -69,6 +70,25 @@ int main() {
         assembly_image, std::vector<std::vector<std::uint8_t>>{{10U, 20U}, {30U, 40U}});
     const auto contiguous_assembly = pqoi::assemble_qoi(assembly_image, payload);
     assert(nested_assembly == contiguous_assembly);
+    auto direct_buffer = pqoi::prepare_qoi_buffer(assembly_image, payload.size());
+    std::copy(payload.begin(), payload.end(), direct_buffer.begin() + pqoi::qoi_header_bytes);
+    assert(direct_buffer == contiguous_assembly);
+
+    pqoi::BlockEncodingStats online_stats;
+    std::vector<std::uint8_t> online_payload;
+    pqoi::encode_qoi_block(image.pixels, pqoi::Block{0U, image.pixels.size()}, pqoi::QoiState{}, online_payload, &online_stats);
+    pqoi::EncodeResult scanned_stats;
+    pqoi::populate_chunk_distribution(pqoi::assemble_qoi(image, online_payload), scanned_stats);
+    assert(online_stats.run_chunks == scanned_stats.run_chunks);
+    assert(online_stats.index_chunks == scanned_stats.index_chunks);
+    assert(online_stats.diff_chunks == scanned_stats.diff_chunks);
+    assert(online_stats.luma_chunks == scanned_stats.luma_chunks);
+    assert(online_stats.rgb_chunks == scanned_stats.rgb_chunks);
+    assert(online_stats.rgba_chunks == scanned_stats.rgba_chunks);
+
+    const pqoi::QoiState empty_state = pqoi::apply_block_summary(initial_state, pqoi::BlockSummary{});
+    assert(empty_state.previous == initial_state.previous);
+    assert(empty_state.index == initial_state.index);
 
     pqoi::Image run_image;
     run_image.width = 128U;

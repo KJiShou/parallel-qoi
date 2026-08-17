@@ -35,4 +35,9 @@ EncodeResult run_mpi_conversion(const std::string& input_path,
                                 const EncodeOptions& options,
                                 bool validate);
 
+// Runs the line-oriented persistent worker protocol. MPI must already be
+// initialized by the CLI entry point; rank 0 owns stdin/stdout and broadcasts
+// each request to the remaining ranks.
+int run_mpi_server();
+
 }  // namespace pqoi
