@@ -104,7 +104,8 @@ std::string result_json(const EncodeResult& result) {
          << ", \"total_ms\": " << result.total_ms << "},\n"
          << "  \"output\": {\"path\": \"" << escape_json(result.output_path) << "\", \"bytes\": "
          << result.output_bytes << ", \"compression_ratio\": " << result.compression_ratio
-         << ", \"throughput_mpixels\": " << result.throughput_mpixels << "},\n"
+         << ", \"throughput_mpixels\": " << result.throughput_mpixels
+         << ", \"core_pipeline_throughput_mpixels\": " << result.core_pipeline_throughput_mpixels << "},\n"
          << "  \"chunks\": {\"run\": " << result.run_chunks
          << ", \"index\": " << result.index_chunks
          << ", \"diff\": " << result.diff_chunks

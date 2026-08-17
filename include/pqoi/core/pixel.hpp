@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cstdint>
+#include <type_traits>
 
 namespace pqoi {
 
@@ -17,6 +18,12 @@ struct Pixel {
         return left.r == right.r && left.g == right.g && left.b == right.b && left.a == right.a;
     }
 };
+
+// Pixel is intentionally a four-byte, trivially-copyable value.  MPI uses
+// this representation for direct scatter into local Pixel storage; keep the
+// invariant close to the type instead of relying on a backend-local guess.
+static_assert(sizeof(Pixel) == 4, "Pixel must have a packed four-byte representation");
+static_assert(std::is_trivially_copyable_v<Pixel>, "Pixel must be trivially copyable");
 
 constexpr std::size_t qoi_hash(const Pixel& pixel) noexcept {
     return (static_cast<std::size_t>(pixel.r) * 3U +

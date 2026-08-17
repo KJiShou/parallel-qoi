@@ -9,6 +9,8 @@ pipeline. It contains:
   Pass 1/summary, propagation, transfer, Pass 2/encode, prefix scan,
   compaction, core CUDA pipeline, merge, file write, validation and end-to-end
   timing;
+- core pipeline timing (`core_pipeline_ms`) and its throughput, covering the
+  native encode pipeline without load, write, validation or metrics analysis;
 - output size, compression ratio and encode throughput;
 - RUN, INDEX, DIFF, LUMA, RGB and RGBA chunk counts;
 - inherited cross-block INDEX hits and fallback bytes avoided;

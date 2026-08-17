@@ -22,10 +22,12 @@ published record of selected filenames.
 ## Repetition and timing
 
 Every image/configuration performs one unreported warm-up followed by five
-measured runs. Aggregation uses per-image median encode time as the primary
-statistic and retains mean and sample standard deviation. Backends run
-sequentially. `encode_ms` excludes input decode, output writing and validation;
-`write_ms` is reported separately. `total_ms` is native end-to-end conversion
+measured runs. Aggregation uses per-image median core-pipeline time as the
+primary tuning statistic and retains mean and sample standard deviation.
+Backends run sequentially. `encode_ms` excludes input decode, output writing
+and validation; `write_ms` is reported separately. `core_pipeline_ms` covers
+the native backend pipeline after input loading and before output writing,
+including MPI distribution, synchronization, encoding and merge. `total_ms` is native end-to-end conversion
 latency and excludes Electron, result JSON writing and the separately reported
 `metrics_analysis_ms` pass used to collect chunk/state research counters.
 
@@ -50,9 +52,9 @@ performs a separately timed prefix scan; no value is inferred or fabricated.
 
 `aggregate_results.py` produces per-run, per-image, category and full-suite CSV
 files. It calculates speedup, CPU/MPI efficiency, compression ratio, output-size
-overhead, chunk distribution, cross-block counters, suite throughput and total
-encoded size. CUDA efficiency is intentionally blank because CPU thread/process
-efficiency is not a meaningful GPU occupancy metric.
+overhead, chunk distribution, cross-block counters, encode and core-pipeline
+suite throughput, and total encoded size. CUDA efficiency is intentionally blank
+because CPU thread/process efficiency is not a meaningful GPU occupancy metric.
 
 ## Reproducibility
 

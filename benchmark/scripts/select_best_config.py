@@ -61,7 +61,7 @@ def main() -> int:
     suite_rows = read_csv(args.suite_summary)
 
     selected_details: dict[str, Any] = {
-        "criterion": "minimum total_encode_ms among complete, pixel-valid tuning configurations",
+        "criterion": "minimum total_core_pipeline_ms among complete, pixel-valid tuning configurations",
         "expected_images": expected_images,
         "backends": {},
     }
@@ -74,12 +74,14 @@ def main() -> int:
             and row.get("backend") == backend
             and parse_bool(row.get("all_valid", ""))
             and parse_int(row.get("images", ""), "images", row.get("configuration_id", "")) == expected_images
+            and row.get("total_core_pipeline_ms") not in {None, "", "None"}
+            and float(row["total_core_pipeline_ms"]) > 0.0
         ]
         if not candidates:
             raise RuntimeError(
                 f"no complete and valid {backend} configuration covers all {expected_images} tuning images"
             )
-        winner = min(candidates, key=lambda row: float(row["total_encode_ms"]))
+        winner = min(candidates, key=lambda row: float(row["total_core_pipeline_ms"]))
         configuration_id = winner["configuration_id"]
         chosen = parse_configuration(backend, configuration_id)
         best_configurations[backend] = chosen
@@ -87,6 +89,8 @@ def main() -> int:
             "configuration_id": configuration_id,
             "parameters": chosen,
             "images": expected_images,
+            "total_core_pipeline_ms": float(winner["total_core_pipeline_ms"]),
+            "suite_core_pipeline_throughput_mpixels": float(winner["suite_core_pipeline_throughput_mpixels"]),
             "total_encode_ms": float(winner["total_encode_ms"]),
             "suite_throughput_mpixels": float(winner["suite_throughput_mpixels"]),
         }

@@ -31,6 +31,8 @@ void encode_qoi_block_local(const std::vector<Pixel>& pixels,
 // Concatenates ordered block chunks into a standards-compliant QOI file.
 std::vector<std::uint8_t> assemble_qoi(const Image& image,
                                        const std::vector<std::vector<std::uint8_t>>& block_bytes);
+std::vector<std::uint8_t> assemble_qoi(const Image& image,
+                                       const std::vector<std::uint8_t>& payload);
 
 // Backend-owned block scheduling. These functions keep the algorithm-specific
 // work in src/backends while qoi_codec.cpp owns shared QOI chunk primitives.

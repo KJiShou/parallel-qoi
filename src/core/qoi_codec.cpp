@@ -186,6 +186,20 @@ std::vector<std::uint8_t> assemble_qoi(const Image& image,
     return output;
 }
 
+std::vector<std::uint8_t> assemble_qoi(const Image& image,
+                                       const std::vector<std::uint8_t>& payload) {
+    std::vector<std::uint8_t> output;
+    output.reserve(image.pixels.size() * 2U + 22U);
+    output.insert(output.end(), {'q', 'o', 'i', 'f'});
+    write_u32_be(output, image.width);
+    write_u32_be(output, image.height);
+    output.push_back(image.channels);
+    output.push_back(0U);
+    output.insert(output.end(), payload.begin(), payload.end());
+    output.insert(output.end(), {0U, 0U, 0U, 0U, 0U, 0U, 0U, 1U});
+    return output;
+}
+
 std::vector<std::uint8_t> encode_qoi(const Image& image,
                                      const EncodeOptions& options,
                                      EncodeResult* metrics) {

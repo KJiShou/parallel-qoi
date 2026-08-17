@@ -25,7 +25,7 @@
     },
     "output": {
       "type": "object",
-      "required": ["path", "bytes", "compression_ratio", "throughput_mpixels"]
+      "required": ["path", "bytes", "compression_ratio", "throughput_mpixels", "core_pipeline_throughput_mpixels"]
     },
     "chunks": {
       "type": "object",

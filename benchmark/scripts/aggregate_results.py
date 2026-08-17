@@ -90,6 +90,7 @@ def flatten(path: Path, payload: dict[str, Any]) -> dict[str, Any]:
         "output_bytes": output.get("bytes"),
         "compression_ratio": output.get("compression_ratio"),
         "throughput_mpixels": output.get("throughput_mpixels"),
+        "core_pipeline_throughput_mpixels": output.get("core_pipeline_throughput_mpixels"),
         "validation_passed": validation.get("passed"),
         "pixel_match": validation.get("pixel_match"),
         "sha256_match": validation.get("sha256_match"),
@@ -97,7 +98,7 @@ def flatten(path: Path, payload: dict[str, Any]) -> dict[str, Any]:
         "inherited_index_hits": cross_block.get("inherited_index_hits", 0),
         "fallback_bytes_avoided": cross_block.get("fallback_bytes_avoided", 0),
     }
-    row.update({field: timing.get(field, 0.0) for field in TIMING_FIELDS})
+    row.update({field: timing.get(field, None if field == "core_pipeline_ms" else 0.0) for field in TIMING_FIELDS})
     row["pass1_ms"] = row["summary_ms"]
     row["pass2_ms"] = row["encode_ms"]
     row["communication_ms"] = row["transfer_in_ms"] + row["transfer_out_ms"]
@@ -115,7 +116,7 @@ def aggregate_image(group: list[dict[str, Any]]) -> dict[str, Any]:
     row["all_valid"] = all(item.get("validation_passed") is True for item in group)
     for field in (*TIMING_FIELDS, *DERIVED_PHASE_FIELDS):
         row.update(describe((item.get(field) for item in group), field))
-    for field in ("output_bytes", "compression_ratio", "throughput_mpixels", "inherited_index_hits",
+    for field in ("output_bytes", "compression_ratio", "throughput_mpixels", "core_pipeline_throughput_mpixels", "inherited_index_hits",
                   "fallback_bytes_avoided", *[f"chunks_{name}" for name in CHUNK_FIELDS]):
         row.update(describe((item.get(field) for item in group), field))
     return row
@@ -138,13 +139,21 @@ def add_derived_metrics(rows: list[dict[str, Any]]) -> None:
     for image_rows in by_image.values():
         serial = next((row for row in image_rows if row.get("backend") == "serial"), None)
         serial_time = serial.get("encode_ms_median") if serial else None
+        serial_pipeline_time = serial.get("core_pipeline_ms_median") if serial else None
         serial_bytes = serial.get("output_bytes_median") if serial else None
         for row in image_rows:
             encode = row.get("encode_ms_median")
             speedup = float(serial_time) / float(encode) if serial_time and encode else None
+            pipeline = row.get("core_pipeline_ms_median")
+            pipeline_speedup = (
+                float(serial_pipeline_time) / float(pipeline)
+                if serial_pipeline_time and pipeline else None
+            )
             row["speedup"] = speedup
             workers = worker_count(row)
             row["efficiency"] = speedup / workers if speedup is not None and workers else None
+            row["pipeline_speedup"] = pipeline_speedup
+            row["pipeline_efficiency"] = pipeline_speedup / workers if pipeline_speedup is not None and workers else None
             output_bytes = row.get("output_bytes_median")
             row["size_overhead_percent"] = (
                 (float(output_bytes) - float(serial_bytes)) / float(serial_bytes) * 100.0
@@ -161,15 +170,26 @@ def aggregate_suite(rows: list[dict[str, Any]], keys: tuple[str, ...]) -> list[d
         row = dict(zip(keys, key_values))
         total_pixels = sum(int(item.get("pixels") or 0) for item in group)
         total_encode_ms = sum(float(item.get("encode_ms_median") or 0.0) for item in group)
+        pipeline_values = [item.get("core_pipeline_ms_median") for item in group]
+        total_pipeline_ms = (
+            sum(float(value) for value in pipeline_values)
+            if all(value is not None and float(value) > 0.0 for value in pipeline_values)
+            else None
+        )
         row.update({
             "images": len(group),
             "total_pixels": total_pixels,
             "total_encode_ms": total_encode_ms,
             "suite_throughput_mpixels": total_pixels / (total_encode_ms * 1000.0) if total_encode_ms > 0 else None,
+            "total_core_pipeline_ms": total_pipeline_ms,
+            "suite_core_pipeline_throughput_mpixels": (
+                total_pixels / (total_pipeline_ms * 1000.0) if total_pipeline_ms and total_pipeline_ms > 0 else None
+            ),
             "total_output_bytes": sum(float(item.get("output_bytes_median") or 0.0) for item in group),
             "all_valid": all(bool(item.get("all_valid")) for item in group),
         })
-        for field in ("encode_ms_median", "speedup", "efficiency", "size_overhead_percent", "compression_ratio_median"):
+        for field in ("encode_ms_median", "core_pipeline_ms_median", "speedup", "efficiency", "pipeline_speedup",
+                      "pipeline_efficiency", "size_overhead_percent", "compression_ratio_median"):
             row.update(describe((item.get(field) for item in group), field))
         result.append(row)
     return result
@@ -207,6 +227,7 @@ def main() -> int:
         "stage", "image_id", "category", "backend", "configuration_id", "pixels", "width", "height",
         "threads", "processes", "blocks", "segment_length", "cuda_threads_per_block", "encode_ms_median", "encode_ms_mean",
         "encode_ms_stdev", "speedup", "efficiency", "throughput_mpixels_median",
+        "core_pipeline_ms_median", "core_pipeline_throughput_mpixels_median", "pipeline_speedup", "pipeline_efficiency",
     )
     write_csv(summary_dir / "scalability-summary.csv", [
         {field: row.get(field) for field in scalability_fields} for row in per_image
