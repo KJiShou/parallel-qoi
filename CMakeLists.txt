@@ -90,4 +90,14 @@ if (BUILD_TESTING)
     add_executable(pqoi_core_tests tests/unit/core_tests.cpp)
     target_link_libraries(pqoi_core_tests PRIVATE pqoi_core)
     add_test(NAME pqoi_core_tests COMMAND pqoi_core_tests)
+    if (PQOI_ENABLE_MPI AND WIN32)
+        add_test(
+            NAME pqoi_mpi_smoke
+            COMMAND powershell -NoProfile -ExecutionPolicy Bypass
+                    -File "${CMAKE_CURRENT_SOURCE_DIR}/tests/mpi_smoke.ps1"
+                    -MpiExe "$<TARGET_FILE:pqoi_mpi>"
+                    -SerialExe "$<TARGET_FILE:pqoi_serial>"
+                    -Mpiexec "${MPIEXEC_EXECUTABLE}"
+                    -WorkingDirectory "${CMAKE_CURRENT_BINARY_DIR}/mpi-smoke")
+    endif()
 endif()
