@@ -5,7 +5,10 @@ namespace pqoi {
 BlockSummary summarize_block(const std::vector<Pixel>& pixels, const Block block) {
     BlockSummary summary;
     for (std::size_t position = block.begin; position < block.end; ++position) {
-        const Pixel pixel = pixels.at(position);
+        // Block ranges are produced by partition_blocks and validated by the
+        // backend before entering this hot loop.  Unchecked indexing avoids
+        // repeated bounds-check branches for every pixel.
+        const Pixel pixel = pixels[position];
         const std::size_t slot = qoi_hash(pixel);
         summary.last_pixel_for_slot[slot] = pixel;
         summary.touched[slot] = true;
@@ -30,10 +33,15 @@ BlockSummary combine_block_summaries(const std::vector<BlockSummary>& summaries)
 }
 
 QoiState apply_block_summary(QoiState state, const BlockSummary& summary) {
-    state.previous = summary.last_pixel;
+    bool has_pixels = false;
     for (std::size_t slot = 0U; slot < summary.touched.size(); ++slot) {
-        if (summary.touched[slot]) state.index[slot] = summary.last_pixel_for_slot[slot];
+        if (!summary.touched[slot]) continue;
+        has_pixels = true;
+        state.index[slot] = summary.last_pixel_for_slot[slot];
     }
+    // Empty rank summaries are identities.  In particular, they must not
+    // reset the previous pixel before a later non-empty rank is propagated.
+    if (has_pixels) state.previous = summary.last_pixel;
     return state;
 }
 

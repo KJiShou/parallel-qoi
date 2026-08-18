@@ -2,16 +2,20 @@ import { existsSync } from 'node:fs'
 import type { BackendRegistry } from './backendRegistry'
 import { ProcessRunner } from './processRunner'
 import { TempFileService } from './tempFileService'
-import type { BackendId, ConversionRequest, ConversionResponse, NativeResult, SelectedImage } from './types'
+import type { BackendId, ConversionRequest, ConversionResponse, NativeResult, OrchestrationMetrics, SelectedImage } from './types'
 
 function finiteNonNegative(value: unknown): number {
   const numeric = Number(value)
   return Number.isFinite(numeric) && numeric >= 0 ? numeric : 0
 }
 
-function normalizeResult(raw: Partial<NativeResult>, request: ConversionRequest, image: SelectedImage, job: { outputPath: string; previewPath: string }): NativeResult {
+function bool(value: unknown): boolean { return value === true }
+
+export function normalizeResult(raw: Partial<NativeResult>, request: ConversionRequest, image: SelectedImage, job: { outputPath: string; previewPath: string }): NativeResult {
   const rawTiming = raw.timing
   const rawValidation = raw.validation
+  const rawConfiguration = raw.configuration
+  const rawOutput = raw.output
   const threads = request.backend === 'serial' ? 1 : (request.threads ?? 4)
   const segmentLength = Math.max(1, request.segmentLength ?? 1024)
   const requestedBlocks = Math.max(1, request.blocks ?? 8)
@@ -26,11 +30,14 @@ function normalizeResult(raw: Partial<NativeResult>, request: ConversionRequest,
     backend: raw.backend ?? request.backend,
     error: raw.error,
     input: raw.input ?? { path: image.inputPath, width: image.width, height: image.height, channels: image.channels },
-    configuration: raw.configuration ?? {
-      blocks, threads, segment_length: segmentLength,
-      cuda_threads_per_block: cudaThreadsPerBlock,
-      cuda_device_architecture: '',
-      persistent_context_reused: false,
+    configuration: {
+      blocks: Number(rawConfiguration?.blocks ?? blocks),
+      threads: Number(rawConfiguration?.threads ?? threads),
+      segment_length: Number(rawConfiguration?.segment_length ?? segmentLength),
+      cuda_threads_per_block: Number(rawConfiguration?.cuda_threads_per_block ?? cudaThreadsPerBlock),
+      cuda_device_architecture: rawConfiguration?.cuda_device_architecture ?? '',
+      persistent_context_reused: bool(rawConfiguration?.persistent_context_reused),
+      input_cache_reused: bool(rawConfiguration?.input_cache_reused),
     },
     timing: {
       load_ms: finiteNonNegative(rawTiming?.load_ms),
@@ -50,7 +57,13 @@ function normalizeResult(raw: Partial<NativeResult>, request: ConversionRequest,
       validation_ms: finiteNonNegative(rawTiming?.validation_ms),
       total_ms: finiteNonNegative(rawTiming?.total_ms),
     },
-    output: raw.output ?? { path: job.outputPath, bytes: 0, compression_ratio: 0, throughput_mpixels: 0 },
+    output: {
+      path: rawOutput?.path ?? job.outputPath,
+      bytes: Number(rawOutput?.bytes ?? 0),
+      compression_ratio: Number(rawOutput?.compression_ratio ?? 0),
+      throughput_mpixels: Number(rawOutput?.throughput_mpixels ?? 0),
+      core_pipeline_throughput_mpixels: Number(rawOutput?.core_pipeline_throughput_mpixels ?? 0),
+    },
     chunks: raw.chunks ?? { run: 0, index: 0, diff: 0, luma: 0, rgb: 0, rgba: 0 },
     cross_block: raw.cross_block ?? { inherited_index_hits: 0, fallback_bytes_avoided: 0 },
     preview_path: raw.preview_path ?? job.previewPath,
@@ -59,6 +72,17 @@ function normalizeResult(raw: Partial<NativeResult>, request: ConversionRequest,
       pixel_match: rawValidation?.pixel_match ?? false,
       sha256_match: rawValidation?.sha256_match ?? false,
     },
+  }
+}
+
+function normalizeOrchestration(raw: Record<string, unknown>, result: NativeResult): OrchestrationMetrics {
+  const rawMetrics = raw.__orchestration as Partial<OrchestrationMetrics> | undefined
+  return {
+    request_wall_ms: finiteNonNegative(rawMetrics?.request_wall_ms),
+    worker_startup_ms: finiteNonNegative(rawMetrics?.worker_startup_ms),
+    worker_reused: bool(rawMetrics?.worker_reused),
+    input_cache_reused: bool(rawMetrics?.input_cache_reused) || result.configuration.input_cache_reused,
+    fallback_used: bool(rawMetrics?.fallback_used),
   }
 }
 
@@ -117,13 +141,25 @@ export class ConversionService {
           cuda_threads_per_block: request.cudaThreadsPerBlock ?? 128,
           validate: true,
         }, job.resultPath)
+      : request.backend === 'mpi'
+        ? await this.runner.runMpi(job.jobId, executable, command, request.threads ?? 4, {
+            request_id: job.jobId,
+            input: image.inputPath,
+            output: job.outputPath,
+            result: job.resultPath,
+            preview: job.previewPath,
+            blocks,
+            segment_length: request.segmentLength ?? 1024,
+            validate: true,
+          }, job.resultPath, commandArgs)
       : await this.runner.run(job.jobId, command, commandArgs, job.resultPath)
     const result = normalizeResult(rawResult as Partial<NativeResult>, request, image, job)
+    const orchestration = normalizeOrchestration(rawResult, result)
     const previewDataUrl = result.validation?.passed && existsSync(job.previewPath)
       ? await this.temp.previewDataUrl(job.jobId)
       : undefined
     this.results.set(job.jobId, result)
-    return { jobId: job.jobId, result, previewDataUrl }
+    return { jobId: job.jobId, result, orchestration, previewDataUrl }
   }
 
   async compare(requests: ConversionRequest[]): Promise<ConversionResponse[]> {

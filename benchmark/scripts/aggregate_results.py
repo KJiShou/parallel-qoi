@@ -95,10 +95,18 @@ def flatten(path: Path, payload: dict[str, Any]) -> dict[str, Any]:
         "pixel_match": validation.get("pixel_match"),
         "sha256_match": validation.get("sha256_match"),
         "process_wall_ms": experiment.get("process_wall_ms"),
+        "request_roundtrip_ms": experiment.get("request_roundtrip_ms"),
+        "worker_startup_ms": experiment.get("worker_startup_ms"),
+        "worker_reused": experiment.get("worker_reused", False),
+        "input_cache_reused": experiment.get("input_cache_reused", configuration.get("input_cache_reused", False)),
+        "persistent_mpi": experiment.get("persistent_mpi", False),
         "inherited_index_hits": cross_block.get("inherited_index_hits", 0),
         "fallback_bytes_avoided": cross_block.get("fallback_bytes_avoided", 0),
     }
     row.update({field: timing.get(field, None if field == "core_pipeline_ms" else 0.0) for field in TIMING_FIELDS})
+    # Keep a short pipeline alias in CSV reports while retaining the native
+    # core_pipeline_* names used by the result contract.
+    row["pipeline_ms"] = row["core_pipeline_ms"]
     row["pass1_ms"] = row["summary_ms"]
     row["pass2_ms"] = row["encode_ms"]
     row["communication_ms"] = row["transfer_in_ms"] + row["transfer_out_ms"]
@@ -116,6 +124,7 @@ def aggregate_image(group: list[dict[str, Any]]) -> dict[str, Any]:
     row["all_valid"] = all(item.get("validation_passed") is True for item in group)
     for field in (*TIMING_FIELDS, *DERIVED_PHASE_FIELDS):
         row.update(describe((item.get(field) for item in group), field))
+    row.update(describe((item.get("pipeline_ms") for item in group), "pipeline_ms"))
     for field in ("output_bytes", "compression_ratio", "throughput_mpixels", "core_pipeline_throughput_mpixels", "inherited_index_hits",
                   "fallback_bytes_avoided", *[f"chunks_{name}" for name in CHUNK_FIELDS]):
         row.update(describe((item.get(field) for item in group), field))
@@ -154,6 +163,8 @@ def add_derived_metrics(rows: list[dict[str, Any]]) -> None:
             row["efficiency"] = speedup / workers if speedup is not None and workers else None
             row["pipeline_speedup"] = pipeline_speedup
             row["pipeline_efficiency"] = pipeline_speedup / workers if pipeline_speedup is not None and workers else None
+            row["pipeline_time_median"] = row.get("pipeline_ms_median")
+            row["pipeline_time_stdev"] = row.get("pipeline_ms_stdev")
             output_bytes = row.get("output_bytes_median")
             row["size_overhead_percent"] = (
                 (float(output_bytes) - float(serial_bytes)) / float(serial_bytes) * 100.0
@@ -182,7 +193,11 @@ def aggregate_suite(rows: list[dict[str, Any]], keys: tuple[str, ...]) -> list[d
             "total_encode_ms": total_encode_ms,
             "suite_throughput_mpixels": total_pixels / (total_encode_ms * 1000.0) if total_encode_ms > 0 else None,
             "total_core_pipeline_ms": total_pipeline_ms,
+            "total_pipeline_ms": total_pipeline_ms,
             "suite_core_pipeline_throughput_mpixels": (
+                total_pixels / (total_pipeline_ms * 1000.0) if total_pipeline_ms and total_pipeline_ms > 0 else None
+            ),
+            "suite_pipeline_throughput_mpixels": (
                 total_pixels / (total_pipeline_ms * 1000.0) if total_pipeline_ms and total_pipeline_ms > 0 else None
             ),
             "total_output_bytes": sum(float(item.get("output_bytes_median") or 0.0) for item in group),
@@ -228,6 +243,7 @@ def main() -> int:
         "threads", "processes", "blocks", "segment_length", "cuda_threads_per_block", "encode_ms_median", "encode_ms_mean",
         "encode_ms_stdev", "speedup", "efficiency", "throughput_mpixels_median",
         "core_pipeline_ms_median", "core_pipeline_throughput_mpixels_median", "pipeline_speedup", "pipeline_efficiency",
+        "pipeline_ms_median", "pipeline_ms_stdev", "pipeline_time_median", "pipeline_time_stdev",
     )
     write_csv(summary_dir / "scalability-summary.csv", [
         {field: row.get(field) for field in scalability_fields} for row in per_image

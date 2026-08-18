@@ -141,6 +141,8 @@ function getConfiguration(response: ConversionResponse) {
   return [
     { label: 'Processes', value: configuration.threads },
     { label: 'Image partitions', value: configuration.blocks },
+    { label: 'MPI worker reused', value: response.orchestration.worker_reused ? 'yes' : 'no' },
+    { label: 'Input cache reused', value: response.orchestration.input_cache_reused ? 'yes' : 'no' },
   ]
 }
 
@@ -153,6 +155,8 @@ function ExpandedDetails({ response, serialEncode, serialBytes }: { response: Co
     { label: 'CUDA core pipeline', value: formatMs(timing.core_pipeline_ms) },
   ]
   const totalData = [
+    { label: 'Request wall time', value: formatMs(response.orchestration.request_wall_ms) },
+    { label: 'Worker startup', value: formatMs(response.orchestration.worker_startup_ms) },
     { label: 'Output write', value: formatMs(timing.write_ms) },
     { label: 'Metrics analysis (excluded)', value: formatMs(timing.metrics_analysis_ms) },
     { label: 'End-to-end total', value: formatMs(timing.total_ms) },
@@ -165,6 +169,10 @@ function ExpandedDetails({ response, serialEncode, serialBytes }: { response: Co
 
   const configurationData = [
     ...getConfiguration(response),
+    ...(response.result.backend === 'mpi' ? [
+      { label: 'Persistent MPI context', value: response.result.configuration.persistent_context_reused ? 'yes' : 'no' },
+      { label: 'Fallback used', value: response.orchestration.fallback_used ? 'yes' : 'no' },
+    ] : []),
     { label: 'Compression ratio', value: `${response.result.output.compression_ratio.toFixed(2)}×` },
   ]
   const speedup = getSpeedup(response, serialEncode)
@@ -196,7 +204,7 @@ function ExpandedDetails({ response, serialEncode, serialBytes }: { response: Co
       </div>
       <div>
         <Typography.Text className="expanded-details-title">End-to-end total</Typography.Text>
-        <Typography.Text type="secondary" className="expanded-details-note">Includes native load, encode, output write, validation and preview, plus allocation and other native I/O overhead; excludes Electron, result JSON writing and metrics analysis.</Typography.Text>
+        <Typography.Text type="secondary" className="expanded-details-note">Request wall time includes Dashboard orchestration and persistent worker startup/reuse. Native total excludes Electron and result JSON writing; metrics analysis is reported separately.</Typography.Text>
         <Descriptions className="expanded-descriptions" data={totalData} column={{ xs: 1, sm: 2, md: 2, lg: 3 }} layout="vertical" tableLayout="fixed" size="small" border />
       </div>
       <div>

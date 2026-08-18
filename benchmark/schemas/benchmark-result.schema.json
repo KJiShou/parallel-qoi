@@ -17,7 +17,13 @@
         "channels": {"type": "integer", "enum": [0, 3, 4]}
       }
     },
-    "configuration": {"type": "object"},
+    "configuration": {
+      "type": "object",
+      "properties": {
+        "persistent_context_reused": {"type": "boolean"},
+        "input_cache_reused": {"type": "boolean"}
+      }
+    },
     "timing": {
       "type": "object",
       "required": ["load_ms", "cuda_init_ms", "allocation_ms", "summary_ms", "propagation_ms", "transfer_in_ms", "encode_ms", "transfer_out_ms", "merge_ms", "prefix_scan_ms", "compaction_ms", "core_pipeline_ms", "write_ms", "metrics_analysis_ms", "validation_ms", "total_ms"],
@@ -42,6 +48,16 @@
       "required": ["passed", "pixel_match", "sha256_match"],
       "additionalProperties": {"type": "boolean"}
     },
-    "experiment": {"type": "object"}
+    "experiment": {
+      "type": "object",
+      "properties": {
+        "process_wall_ms": {"type": "number", "minimum": 0},
+        "request_roundtrip_ms": {"type": "number", "minimum": 0},
+        "worker_startup_ms": {"type": "number", "minimum": 0},
+        "worker_reused": {"type": "boolean"},
+        "input_cache_reused": {"type": "boolean"},
+        "persistent_mpi": {"type": "boolean"}
+      }
+    }
   }
 }

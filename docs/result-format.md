@@ -5,6 +5,8 @@ pipeline. It contains:
 
 - input dimensions and RGB/RGBA channel mode;
 - backend configuration;
+- persistent MPI/CUDA context and input-cache reuse flags (missing legacy flags
+  are treated as false by the Dashboard);
 - input decode (`load_ms`), CUDA initialization/allocation when applicable,
   Pass 1/summary, propagation, transfer, Pass 2/encode, prefix scan,
   compaction, core CUDA pipeline, merge, file write, validation and end-to-end
@@ -20,3 +22,8 @@ The benchmark runner adds an `experiment` object to each artifact. It records
 stage, image/category identifiers, warm-up status, measured-run index, source
 digest, exact command, configuration and host metadata. The complete contract
 is in `benchmark/schemas/benchmark-result.schema.json`.
+
+Dashboard responses additionally expose orchestration timing: request wall time,
+worker startup, worker reuse, input-cache reuse and one-shot fallback. These
+values are separate from native `core_pipeline_ms` so algorithm time is not
+confused with MPI process startup or Electron scheduling.

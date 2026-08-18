@@ -62,6 +62,11 @@ int main(int argc, char** argv) {
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &world_size);
     try {
+        if (argc == 2 && std::string(argv[1]) == "--server") {
+            const int exit_code = pqoi::run_mpi_server();
+            MPI_Finalize();
+            return exit_code;
+        }
         const MpiCliArgs args = parse_args(argc, argv, world_size, rank);
         const pqoi::EncodeResult result = pqoi::run_mpi_conversion(
             args.input, args.output, args.result, args.preview, args.options, args.validate);

@@ -31,6 +31,12 @@ including MPI distribution, synchronization, encoding and merge. `total_ms` is n
 latency and excludes Electron, result JSON writing and the separately reported
 `metrics_analysis_ms` pass used to collect chunk/state research counters.
 
+For Dashboard-like repeated MPI requests, pass `--persistent-mpi` to
+`run_benchmarks.py`. It starts one `mpiexec --server` worker per image and
+configuration, sends the warm-up and five measured JSON-line requests through
+that worker, and records `request_roundtrip_ms`, worker startup and reuse in
+the `experiment` object. The default remains one-shot MPI for compatibility.
+
 `load_ms` measures native input decode. `cuda_init_ms` and `allocation_ms` are
 CUDA-only setup phases and are zero for the other backends. Summary corresponds
 to Pass 1, propagation is state propagation, and encode is Pass 2. OpenMP uses
@@ -55,6 +61,8 @@ files. It calculates speedup, CPU/MPI efficiency, compression ratio, output-size
 overhead, chunk distribution, cross-block counters, encode and core-pipeline
 suite throughput, and total encoded size. CUDA efficiency is intentionally blank
 because CPU thread/process efficiency is not a meaningful GPU occupancy metric.
+Pipeline median/stdev aliases, pipeline speedup/efficiency, and suite pipeline
+throughput are retained alongside the native `core_pipeline_*` columns.
 
 ## Reproducibility
 

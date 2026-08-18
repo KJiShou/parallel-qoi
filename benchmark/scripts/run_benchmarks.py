@@ -207,6 +207,71 @@ def run_once(command: list[str], result_path: Path, metadata: dict[str, Any],
     return success
 
 
+def start_persistent_mpi(executable: Path, processes: int, launcher: str) -> tuple[subprocess.Popen[str], float]:
+    command = [launcher, "-n", str(processes), str(executable), "--server"]
+    started = time.perf_counter()
+    process = subprocess.Popen(
+        command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+        text=True, bufsize=1,
+    )
+    return process, (time.perf_counter() - started) * 1000.0
+
+
+def run_persistent_mpi_request(process: subprocess.Popen[str], request: dict[str, Any],
+                               result_path: Path, metadata: dict[str, Any],
+                               transient_artifacts: tuple[Path, ...], retain_artifacts: bool,
+                               startup_ms: float, worker_reused: bool) -> bool:
+    wall_start = time.perf_counter()
+    if process.stdin is None or process.stdout is None:
+        raise RuntimeError("persistent MPI worker pipes are unavailable")
+    process.stdin.write(json.dumps(request, separators=(",", ":")) + "\n")
+    process.stdin.flush()
+    response_line = process.stdout.readline()
+    wall_ms = (time.perf_counter() - wall_start) * 1000.0
+    if not response_line:
+        raise RuntimeError("persistent MPI worker exited before returning a response")
+    try:
+        response = json.loads(response_line)
+    except json.JSONDecodeError as error:
+        raise RuntimeError(f"persistent MPI worker returned invalid JSON: {error}") from error
+    if result_path.exists():
+        try:
+            payload = load_json(result_path)
+        except (json.JSONDecodeError, OSError) as error:
+            payload = {"status": "error", "error": f"invalid result JSON: {error}"}
+    else:
+        payload = {"status": "error", "error": str(response.get("error", "native executable did not create result JSON"))}
+    payload["experiment"] = {
+        **metadata,
+        "process_wall_ms": wall_ms,
+        "request_roundtrip_ms": wall_ms,
+        "worker_startup_ms": startup_ms,
+        "worker_reused": worker_reused,
+        "persistent_mpi": True,
+        "exit_code": 0 if response.get("status") == "success" else 1,
+        "artifacts_retained": retain_artifacts,
+    }
+    result_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    success = response.get("status") == "success" and payload.get("status") == "success" and payload.get("validation", {}).get("passed") is True
+    if success and not retain_artifacts:
+        for artifact in transient_artifacts:
+            artifact.unlink(missing_ok=True)
+    return success
+
+
+def stop_persistent_mpi(process: subprocess.Popen[str]) -> None:
+    try:
+        if process.stdin is not None:
+            process.stdin.close()
+    except OSError:
+        pass
+    try:
+        process.wait(timeout=15)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        process.wait(timeout=5)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input", type=Path)
@@ -227,6 +292,8 @@ def main() -> int:
     parser.add_argument("--resume", action="store_true", help="Skip already successful run artifacts")
     parser.add_argument("--retain-artifacts", action="store_true", help="Keep generated QOI and preview files")
     parser.add_argument("--quiet", action="store_true")
+    parser.add_argument("--persistent-mpi", action="store_true",
+                        help="keep one mpiexec --server worker per MPI image/configuration")
     args = parser.parse_args()
 
     config = load_json(args.config)
@@ -268,6 +335,12 @@ def main() -> int:
             source_hashes[source_key] = hashlib.sha256(image.read_bytes()).hexdigest()
         source_sha256 = source_hashes[source_key]
         total_runs = warmups + measured_runs
+        persistent_process: subprocess.Popen[str] | None = None
+        persistent_startup_ms = 0.0
+        persistent_request_count = 0
+        if args.persistent_mpi and backend == "mpi":
+            persistent_process, persistent_startup_ms = start_persistent_mpi(
+                executable, int(configuration.get("processes", 1)), args.mpi_launcher)
         for sequence in range(total_runs):
             is_warmup = sequence < warmups
             measured_index = sequence - warmups + 1
@@ -300,8 +373,33 @@ def main() -> int:
                     if not args.quiet: print(f"skip [{entry['id']}] {config_id} {run_label}")
                     continue
             if not args.quiet: print(f"[{entry['id']}] {config_id} {run_label}")
-            if not run_once(command, result, metadata, (output, preview), retain_artifacts):
+            try:
+                if persistent_process is not None:
+                    request = {
+                        "request_id": f"{entry['id']}-{config_id}-{run_label}",
+                        "input": str(image), "output": str(output), "result": str(result),
+                        "preview": str(preview) if retain_artifacts else "",
+                        "blocks": int(configuration.get("blocks", 1)),
+                        "segment_length": int(configuration.get("segment_length", 1024)),
+                        "validate": True,
+                    }
+                    startup_ms = persistent_startup_ms if persistent_request_count == 0 else 0.0
+                    worker_reused = persistent_request_count > 0
+                    success = run_persistent_mpi_request(
+                        persistent_process, request, result, metadata, (output, preview), retain_artifacts,
+                        startup_ms, worker_reused)
+                    persistent_request_count += 1
+                else:
+                    success = run_once(command, result, metadata, (output, preview), retain_artifacts)
+                if not success:
+                    failures += 1
+            except (OSError, RuntimeError) as error:
                 failures += 1
+                if not args.quiet: print(f"{config_id} {run_label} failed: {error}")
+                if persistent_process is not None:
+                    break
+        if persistent_process is not None:
+            stop_persistent_mpi(persistent_process)
 
     return 1 if failures else 0
 

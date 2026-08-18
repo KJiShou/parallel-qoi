@@ -48,6 +48,7 @@ struct EncodeResult {
     std::size_t cuda_threads_per_block{128};
     std::string cuda_device_architecture;
     bool persistent_context_reused{false};
+    bool input_cache_reused{false};
     bool validation_passed{false};
     bool decoder_accepted{false};
     bool dimensions_match{false};
